@@ -201,54 +201,40 @@ ADD CONSTRAINT FK_det_compra_material FOREIGN KEY (det_comp_material) REFERENCES
 GO
 
 CREATE TABLE [GRUPO_3312].[tela] (
-    tela_codigo bigint IDENTITY(1,1) NOT NULL,
     tela_material bigint NOT NULL,
     tela_color nvarchar(255) NOT NULL,
     tela_textura nvarchar(255) NOT NULL
 )
 
-ALTER TABLE [GRUPO_3312].[tela]
-ADD CONSTRAINT PK_tela PRIMARY KEY (tela_codigo)
-GO
 
 ALTER TABLE [GRUPO_3312].[tela]
 ADD CONSTRAINT FK_tela_material FOREIGN KEY (tela_material) REFERENCES GRUPO_3312.material(mat_codigo)
 GO
 
 CREATE TABLE [GRUPO_3312].[relleno] (
-    rell_codigo bigint IDENTITY(1,1) NOT NULL,
     rell_material bigint NOT NULL,
     rell_densidad nvarchar(255)
 )
-
-ALTER TABLE [GRUPO_3312].[relleno]
-ADD CONSTRAINT PK_relleno_codigo PRIMARY KEY (rell_codigo)
-GO
 
 ALTER TABLE [GRUPO_3312].[relleno]
 ADD CONSTRAINT FK_relleno_material FOREIGN KEY (rell_material) REFERENCES GRUPO_3312.material(mat_codigo)
 GO
 
 CREATE TABLE [GRUPO_3312].[madera] (
-    mad_codigo bigint IDENTITY(1,1) NOT NULL,
     mad_material bigint NOT NULL,
     mad_color nvarchar(255),
     mad_dureza nvarchar(255)
 )
 
 ALTER TABLE [GRUPO_3312].[madera]
-ADD CONSTRAINT PK_madera PRIMARY KEY (mad_codigo)
-GO
-
-ALTER TABLE [GRUPO_3312].[madera]
 ADD CONSTRAINT FK_madera_material FOREIGN KEY (mad_material) REFERENCES GRUPO_3312.material(mat_codigo)
 GO
 
 CREATE TABLE [GRUPO_3312].[composicion] (
-    comp_id bigint IDENTITY(1,1) NOT NULL,
-    comp_tela bigint NOT NULL,
-    comp_madera bigint NOT NULL,
-    comp_relleno bigint NOT NULL
+    composicion_id bigint IDENTITY(1,1) NOT NULL,
+    composicion_tela bigint NOT NULL,
+    composicion_madera bigint NOT NULL,
+    composicion_relleno bigint NOT NULL
 )
 
 ALTER TABLE [GRUPO_3312].[composicion]
@@ -256,15 +242,15 @@ ADD CONSTRAINT PK_composicion PRIMARY KEY (comp_id)
 GO
 
 ALTER TABLE [GRUPO_3312].[composicion]
-ADD CONSTRAINT FK_comp_tela FOREIGN KEY (comp_tela) REFERENCES GRUPO_3312.tela(tela_codigo)
+ADD CONSTRAINT FK_comp_tela FOREIGN KEY (comp_tela) REFERENCES GRUPO_3312.material(mat_codigo)
 GO
 
 ALTER TABLE [GRUPO_3312].[composicion]
-ADD CONSTRAINT FK_comp_madera FOREIGN KEY (comp_madera) REFERENCES GRUPO_3312.madera(mad_codigo)
+ADD CONSTRAINT FK_comp_madera FOREIGN KEY (comp_madera) REFERENCES GRUPO_3312.material(mat_codigo)
 GO
 
 ALTER TABLE [GRUPO_3312].[composicion]
-ADD CONSTRAINT FK_comp_relleno FOREIGN KEY (comp_relleno) REFERENCES GRUPO_3312.relleno(rell_codigo)
+ADD CONSTRAINT FK_comp_relleno FOREIGN KEY (comp_relleno) REFERENCES GRUPO_3312.material(mat_codigo)
 GO
 
 CREATE TABLE [GRUPO_3312].[sillon] (
