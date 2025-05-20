@@ -1,6 +1,6 @@
 DELETE [GRUPO_3312].[ubicacion]
-DELETE [GRUPO_3312].[sucursal]
 DELETE [GRUPO_3312].[cliente]
+DELETE [GRUPO_3312].[sucursal]
 DELETE [GRUPO_3312].[factura]
 DELETE [GRUPO_3312].[proveedor]
 DELETE [GRUPO_3312].[pedido]

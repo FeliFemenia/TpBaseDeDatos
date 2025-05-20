@@ -60,10 +60,24 @@ GO
 ALTER TABLE [GRUPO_3312].[proveedor]
 ADD CONSTRAINT FK_proveedor_ubi FOREIGN KEY (prov_ubicacion) REFERENCES GRUPO_3312.ubicacion(ubi_codigo)
 
+CREATE TABLE [GRUPO_3312].[envio] (
+    env_numero bigint NOT NULL,
+    env_fechaProgramada datetime2(6),
+    env_fechaEntrega datetime2(6),
+    env_importeTraslado decimal(18,2),
+    env_importeSubida decimal(18,2),
+    env_total decimal(18,2)
+)
+
+ALTER TABLE [GRUPO_3312].[envio]
+ADD CONSTRAINT FK_envio_factura PRIMARY KEY (env_numero)
+GO
+
 CREATE TABLE [GRUPO_3312].[factura] (
     fact_numero bigint NOT NULL,
     fact_sucursal bigint NOT NULL,
     fact_cliente bigint NOT NULL,
+    fact_envio bigint NULL,
     fact_total bigint,
     fact_fecha datetime2(6)
 )
@@ -80,17 +94,8 @@ ALTER TABLE [GRUPO_3312].[factura]
 ADD CONSTRAINT FK_fact_cliente FOREIGN KEY (fact_cliente) REFERENCES GRUPO_3312.cliente(clie_dni)
 GO
 
-CREATE TABLE [GRUPO_3312].[envio] (
-    env_factura bigint NOT NULL,
-    env_fechaProgramada datetime2(6),
-    env_fechaEntrega datetime2(6),
-    env_importeTras decimal(18,2),
-    env_importeSub decimal(18,2),
-    env_total decimal(18,2)
-)
-
-ALTER TABLE [GRUPO_3312].[envio]
-ADD CONSTRAINT FK_envio_factura FOREIGN KEY (env_factura) REFERENCES GRUPO_3312.factura(fact_numero)
+ALTER TABLE [GRUPO_3312].[factura]
+ADD CONSTRAINT FK_fact_envio FOREIGN KEY (fact_envio) REFERENCES GRUPO_3312.envio(env_numero)
 GO
 
 CREATE TABLE [GRUPO_3312].[compra] (
