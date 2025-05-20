@@ -102,8 +102,93 @@ AS
 		 group by env_numero) env_numero,
         m2.Factura_Total, m2.Factura_Fecha
     from gd_esquema.Maestra m2
-    WHERE m2.Factura_Numero is not null and m2.Envio_Numero is not null
+    WHERE m2.Factura_Numero is not null and m2.Detalle_Factura_Precio is null
     group by m2.Factura_Numero, m2.Factura_Total, m2.Factura_Fecha, m2.Envio_Numero
+    END
+GO
+
+ALTER PROCEDURE migrar_compras
+AS
+    BEGIN
+    INSERT INTO GRUPO_3312.compra (comp_numero, comp_sucursal, comp_proveedor, comp_fecha, comp_total)
+    SELECT
+        m2.Compra_Numero,
+        (select suc_numero from GRUPO_3312.sucursal join gd_esquema.Maestra m1
+        on suc_numero = m1.Sucursal_NroSucursal
+        where m1.Compra_Numero = m2.Compra_Numero
+        group by suc_numero),
+        (select prov_cuit from GRUPO_3312.proveedor join gd_esquema.Maestra m1
+         on prov_cuit = m1.Proveedor_Cuit
+         where m1.Compra_Numero = m2.Compra_Numero
+         group by prov_cuit),
+        m2.Compra_Fecha,
+        m2.Compra_Total
+    from gd_esquema.Maestra m2
+	where m2.Compra_Numero is not null
+	group by m2.Compra_Numero, m2.Compra_Fecha, m2.Compra_Total
+    END
+GO
+
+ALTER PROCEDURE migrar_pedidos
+AS
+    BEGIN
+    INSERT INTO GRUPO_3312.pedido (ped_numero, ped_sucursal, ped_cliente, ped_fecha, ped_total, ped_estado)
+    SELECT
+        m2.Pedido_Numero,
+        (select suc_numero from GRUPO_3312.sucursal join gd_esquema.Maestra m1
+          on suc_numero = m1.Sucursal_NroSucursal
+          where m1.Pedido_Numero = m2.Pedido_Numero
+		  group by suc_numero),
+        (select clie_dni from GRUPO_3312.cliente join gd_esquema.Maestra m1
+         on clie_dni = m1.Cliente_Dni
+         where m1.Pedido_Numero = m2.Pedido_Numero
+		 group by clie_dni),
+        m2.Pedido_Fecha,
+        m2.Pedido_Total,
+        m2.Pedido_Estado
+    from gd_esquema.Maestra m2
+	WHERE m2.Pedido_Numero is not null
+	group by m2.Pedido_Numero, m2.Pedido_Fecha, m2.Pedido_Total, m2.Pedido_Estado
+    END
+GO
+
+CREATE PROCEDURE migrar_pedidos_cancelados
+AS
+    BEGIN
+    INSERT INTO GRUPO_3312.pedido_cancelacion (ped_canc_pedido, ped_canc_motivo, ped_canc_fecha)
+    SELECT
+        (select ped_numero from GRUPO_3312.pedido join gd_esquema.Maestra m1
+        on ped_numero = m1.Pedido_Numero
+        where m2.Pedido_Numero = m1.Pedido_Numero
+        group by ped_numero),
+        m2.Pedido_Cancelacion_Motivo,
+        m2.Pedido_Cancelacion_Fecha
+    from gd_esquema.Maestra m2
+    WHERE m2.Pedido_Numero is not null and m2.Pedido_Cancelacion_Motivo is not null
+    group by m2.Pedido_Cancelacion_Motivo, m2.Pedido_Cancelacion_Fecha, m2.Pedido_Numero
+    END
+GO
+
+CREATE PROCEDURE migrar_sillon_modelo
+AS
+    BEGIN
+    INSERT INTO GRUPO_3312.sillon_modelo (sill_mod_codigo, sill_mod_precio, sill_mod_descripcion, sill_mod_modelo)
+    SELECT Sillon_Modelo_Codigo, Sillon_Modelo_Precio, Sillon_Modelo_Descripcion, Sillon_Modelo
+    FROM gd_esquema.Maestra
+    WHERE Sillon_Modelo_Codigo is not null
+    group by Sillon_Modelo_Codigo, Sillon_Modelo_Precio, Sillon_Modelo_Descripcion, Sillon_Modelo
+    END
+GO
+
+CREATE PROCEDURE migrar_sillon_medidas
+AS
+    BEGIN
+    INSERT INTO GRUPO_3312.sillon_medida (sill_med_alto, sill_med_ancho, sill_med_profundidad, sill_med_precio)
+    SELECT
+        Sillon_Medida_Alto, Sillon_Medida_Ancho, Sillon_Medida_Profundidad, Sillon_Medida_Precio
+    from gd_esquema.Maestra
+    WHERE Sillon_Codigo is not null
+    group by Sillon_Medida_Alto, Sillon_Medida_Ancho, Sillon_Medida_Profundidad, Sillon_Medida_Precio
     END
 GO
 
@@ -113,9 +198,23 @@ exec migrar_sucursales
 exec migrar_proveedores
 exec migrar_envios
 exec migrar_facturas
+exec migrar_compras
+exec migrar_pedidos
+exec migrar_pedidos_cancelados
+exec migrar_sillon_modelo
+exec migrar_sillon_medidas
 
 
-select * from GRUPO_3312.cliente join GRUPO_3312.ubicacion on clie_ubicacion = ubi_codigo
+
+
+select ped_canc_pedido from GRUPO_3312.pedido_cancelacion
+group by ped_canc_pedido
+
+
+select Sillon_Medida_Alto, Sillon_Medida_Ancho, Sillon_Medida_Profundidad, Sillon_Medida_Precio from gd_esquema.Maestra
+where Sillon_Codigo is not null
+group by Sillon_Medida_Alto, Sillon_Medida_Ancho, Sillon_Medida_Profundidad, Sillon_Medida_Precio
+
 
 
 
