@@ -174,8 +174,6 @@ GO
 
 CREATE TABLE [GRUPO_3312].[material] (
     mat_codigo bigint IDENTITY(1,1) NOT NULL,
-    mat_nombre nvarchar(255) NOT NULL,
-    mat_descripcion nvarchar(255) NULL,
     mat_precio decimal(18,2) NULL,
     mat_tipo nvarchar(255) NOT NULL
 )
@@ -203,7 +201,9 @@ GO
 CREATE TABLE [GRUPO_3312].[tela] (
     tela_material bigint NOT NULL,
     tela_color nvarchar(255) NOT NULL,
-    tela_textura nvarchar(255) NOT NULL
+    tela_textura nvarchar(255) NOT NULL,
+    tela_nombre nvarchar(255),
+    tela_descripcion nvarchar(255)
 )
 
 
@@ -212,8 +212,10 @@ ADD CONSTRAINT FK_tela_material FOREIGN KEY (tela_material) REFERENCES GRUPO_331
 GO
 
 CREATE TABLE [GRUPO_3312].[relleno] (
-    rell_material bigint NOT NULL,
-    rell_densidad nvarchar(255)
+    relleno_material bigint NOT NULL,
+    relleno_densidad nvarchar(255),
+    relleno_nombre nvarchar(255),
+    relleno_descripcion nvarchar(255)
 )
 
 ALTER TABLE [GRUPO_3312].[relleno]
@@ -221,9 +223,11 @@ ADD CONSTRAINT FK_relleno_material FOREIGN KEY (rell_material) REFERENCES GRUPO_
 GO
 
 CREATE TABLE [GRUPO_3312].[madera] (
-    mad_material bigint NOT NULL,
-    mad_color nvarchar(255),
-    mad_dureza nvarchar(255)
+    madera_material bigint NOT NULL,
+    madera_color nvarchar(255),
+    madera_dureza nvarchar(255),
+    madera_nombre nvarchar(255),
+    madera_descripcion nvarchar(255)
 )
 
 ALTER TABLE [GRUPO_3312].[madera]
