@@ -1,4 +1,4 @@
-CREATE PROCEDURE migrar_ubicacion
+CREATE PROCEDURE migrar_ubicaciones
 AS 
     BEGIN
     INSERT INTO GRUPO_3312.ubicacion (ubi_provincia, ubi_localidad, ubi_direccion)
@@ -169,7 +169,7 @@ AS
     END
 GO
 
-CREATE PROCEDURE migrar_sillon_modelo
+CREATE PROCEDURE migrar_sillon_modelos
 AS
     BEGIN
     INSERT INTO GRUPO_3312.sillon_modelo (sill_mod_codigo, sill_mod_precio, sill_mod_descripcion, sill_mod_modelo)
@@ -203,7 +203,7 @@ AS
     END
 GO
 
-CREATE PROCEDURE migrar_detalle_compra
+CREATE PROCEDURE migrar_detalle_compras
 AS
     BEGIN
     INSERT INTO GRUPO_3312.detalle_compra (det_comp_numero, det_comp_material, det_comp_subtotal, det_comp_precio, det_comp_cantidad)
@@ -212,31 +212,35 @@ AS
          where comp_numero = m2.Compra_Numero
          group by comp_numero),
         (select mat_codigo from GRUPO_3312.material
-         where mat_nombre + mat_descripcion = m2.Material_Nombre + m2.Material_Descripcion
-         group by comp_numero),
+         where mat_precio = m2.Material_Precio and mat_tipo = m2.Material_Tipo
+         group by mat_codigo),
         m2.Detalle_Compra_SubTotal,
         m2.Detalle_Compra_Precio,
         m2.Detalle_Compra_Cantidad
     from gd_esquema.Maestra m2
     WHERE m2.Compra_Numero is not null
-    group by m2.Detalle_Compra_SubTotal, m2.Detalle_Compra_Precio, m2.Detalle_Compra_Cantidad
+    group by m2.Detalle_Compra_SubTotal, m2.Detalle_Compra_Precio, m2.Detalle_Compra_Cantidad, m2.Compra_Numero, m2.Material_Precio, m2.Material_Tipo
     END
 GO
 
-CREATE PROCEDURE migrar_tela
+CREATE PROCEDURE migrar_telas
 AS
     BEGIN
-    INSERT INTO GRUPO_3312.tela (tela_material, tela_textura, tela_color, tela_nombre, tela_descripcion)
-    SELECT
-        (Select mat_codigo FROM GRUPO_3312.material
-        where mat_nombre + mat_descripcion = m1.Material_Nombre + m1.Material_Descripcion),
-        m1.Tela_Textura,
-        m1.Tela_Color,
-        m1.Material_Nombre,
-        m1.Material_Descripcion
-    FROM gd_esquema.Maestra m1 
-	WHERE Tela_Color is not null
-	group by m1.Material_Nombre, m1.Material_Descripcion, m1.Tela_Textura, m1.Tela_Color
+        INSERT INTO GRUPO_3312.tela (tela_material, tela_color, tela_textura, tela_nombre, tela_descripcion)
+        SELECT (select mat_codigo from GRUPO_3312.material join gd_esquema.Maestra m2
+               on m2.Material_Tipo = mat_tipo and m2.Material_Precio = mat_precio
+               WHERE Material_Tipo is not null
+                    and m1.Tela_Color = m2.Tela_Color
+                    and m1.Tela_Textura = m2.Tela_Textura
+                    and m1.Material_Descripcion = m2.Material_Descripcion
+			   group by mat_codigo),
+               m1.Tela_Color,
+               m1.Tela_Textura,
+               m1.Material_Nombre,
+               m1.Material_Descripcion
+        from gd_esquema.Maestra m1
+		WHERE m1.Material_Tipo is not null and m1.Tela_Color is not null
+        group by m1.Tela_Color, m1.Tela_Textura, m1.Material_Nombre, m1.Material_Descripcion
     END
 GO
 
@@ -245,66 +249,146 @@ AS
     BEGIN
     INSERT INTO GRUPO_3312.madera (madera_material, madera_color, madera_dureza, madera_nombre, madera_descripcion)
     SELECT
-        (Select mat_codigo FROM GRUPO_3312.material
-        where mat_tipo = m1.Material_Tipo),
+        (select mat_codigo from GRUPO_3312.material join gd_esquema.Maestra m2
+         on m2.Material_Tipo = mat_tipo and m2.Material_Precio = mat_precio
+         WHERE Material_Tipo is not null
+            and m1.Madera_Dureza = m2.Madera_Dureza
+            and m1.Madera_Color = m2.Madera_Color
+		    and m1.Material_Descripcion = m2.Material_Descripcion
+         group by mat_codigo),
         m1.Madera_Color,
         m1.Madera_Dureza,
         m1.Material_Nombre,
         m1.Material_Descripcion
-    FROM gd_esquema.Maestra m1 
-	WHERE Madera_Color is not null
+    FROM gd_esquema.Maestra m1
+    WHERE m1.Material_Tipo is not null and m1.Madera_Dureza is not null
 	group by m1.Material_Nombre, m1.Material_Descripcion, m1.Madera_Color, m1.Madera_Dureza
     END
 GO
 
-CREATE PROCEDURE migrar_relleno
+CREATE PROCEDURE migrar_rellenos
 AS
     BEGIN
-    INSERT INTO GRUPO_3312.relleno (relleno_material, relleno_densidad, relleno_nombre, relleno_descripcion)
-    SELECT
-        (Select mat_codigo FROM GRUPO_3312.material
-        where mat_nombre + mat_descripcion = m1.Material_Nombre + m1.Material_Descripcion),
-        m1.Relleno_Densidad,
-        m1.Material_Nombre,
-        m1.Material_Descripcion
-    FROM gd_esquema.Maestra m1 
-	WHERE m1.Relleno_Densidad is not null
-	group by m1.Material_Nombre, m1.Material_Descripcion, m1.Relleno_Densidad
+    INSERT INTO GRUPO_3312.relleno(relleno_material, relleno_densidad, relleno_nombre, relleno_descripcion)
+    SELECT (select mat_codigo from GRUPO_3312.material join gd_esquema.Maestra m2
+            on m2.Material_Tipo = mat_tipo and m2.Material_Precio = mat_precio
+            WHERE Material_Tipo is not null
+               and m1.Relleno_Densidad = m2.Relleno_Densidad
+               and m1.Material_Descripcion = m2.Material_Descripcion
+            group by mat_codigo),
+           m1.Relleno_Densidad,
+           m1.Material_Nombre,
+           m1.Material_Descripcion
+    from gd_esquema.Maestra m1
+    WHERE Material_Tipo is not null and m1.Relleno_Densidad is not null
+    group by m1.Relleno_Densidad, m1.Material_Nombre, m1.Material_Descripcion
     END
 GO
 
-CREATE PROCEDURE migrar_composicion
+CREATE PROCEDURE migrar_composiciones
 AS
     BEGIN
-    INSERT INTO GRUPO_3312.composicion (composicion_tela, composicion_madera, composicion_relleno)
+    declare @tela bigint, @madera bigint, @relleno bigint
+    declare cursor_composicion CURSOR LOCAL FORWARD_ONLY STATIC FOR
+        SELECT
+            (select tela_material from gd_esquema.Maestra m2 join GRUPO_3312.tela t1
+            on m2.Tela_Color + m2.Tela_Textura + tela_descripcion = t1.tela_color + t1.tela_textura + m2.Material_Descripcion
+            where m2.Sillon_Codigo = m1.Sillon_Codigo
+            group by t1.tela_material),
+            (select madera_material from gd_esquema.Maestra m2 join GRUPO_3312.madera t1
+            on t1.madera_color + t1.madera_dureza + t1.madera_descripcion = m2.Madera_Color + m2.Madera_Dureza + m2.Material_Descripcion
+            where m2.Sillon_Codigo = m1.Sillon_Codigo
+            group by t1.madera_material),
+            (select relleno_material from gd_esquema.Maestra m2 join GRUPO_3312.relleno r1
+             on r1.relleno_densidad = m2.Relleno_Densidad and m2.Material_Descripcion = r1.relleno_descripcion
+             where m2.Sillon_Codigo = m1.Sillon_Codigo
+             group by r1.relleno_material)
+        FROM gd_esquema.Maestra m1
+        WHERE m1.Sillon_Codigo is not null
+
+    open cursor_composicion
+    fetch cursor_composicion into @tela, @madera, @relleno
+
+    WHILE @@FETCH_STATUS = 0
+        BEGIN
+        IF NOT EXISTS (SELECT 1 FROM GRUPO_3312.composicion
+            WHERE composicion_tela = @tela
+              AND composicion_madera = @madera
+              AND composicion_relleno = @relleno)
+           BEGIN
+               insert into GRUPO_3312.composicion (composicion_tela, composicion_madera, composicion_relleno)
+               VALUES (@tela, @madera, @relleno)
+           END
+
+        fetch cursor_composicion into @tela, @madera, @relleno
+        END
+        CLOSE cursor_composicion
+        DEALLOCATE cursor_composicion
+    END
+GO
+
+CREATE PROCEDURE migrar_sillones
+AS
+    BEGIN
+        INSERT INTO GRUPO_3312.sillon (sill_codigo, sill_modelo, sill_medida, sill_composicion)
+            SELECT
+                Sillon_Codigo,
+                (select sill_mod_codigo from GRUPO_3312.sillon_modelo
+                where sill_mod_codigo = m1.Sillon_Modelo_Codigo
+                group by sill_mod_codigo),
+                (select sill_med_codigo from GRUPO_3312.sillon_medida
+                where sill_med_alto = m1.Sillon_Medida_Alto
+                    and sill_med_ancho = m1.Sillon_Medida_Ancho
+                    and sill_med_profundidad = m1.Sillon_Medida_Profundidad
+                group by sill_med_codigo),
+                (select composicion_id from GRUPO_3312.composicion
+                    where composicion_tela in (select tela_material from GRUPO_3312.tela join gd_esquema.Maestra m2
+                                               on m2.Sillon_Codigo = m1.Sillon_Codigo
+                                               and tela_descripcion = m2.Material_Descripcion)
+                 and composicion_madera in (select madera_material from GRUPO_3312.madera join gd_esquema.Maestra m2
+                                            on m2.Sillon_Codigo = m1.Sillon_Codigo
+                                            and madera_descripcion = m2.Material_Descripcion)
+                 and composicion_relleno in (select relleno_material from GRUPO_3312.relleno join gd_esquema.Maestra m2
+                                             on m2.Sillon_Codigo = m1.Sillon_Codigo
+                                             and relleno_descripcion = m2.Material_Descripcion)
+                )
+            FROM gd_esquema.Maestra m1
+            Where m1.Sillon_Codigo is not null
+        group by m1.Sillon_Codigo, m1.Sillon_Modelo_Codigo, m1.Sillon_Medida_Alto, m1.Sillon_Medida_Ancho, m1.Sillon_Medida_Profundidad
+    END
+GO
+
+CREATE PROCEDURE migrar_detalle_pedidos
+AS
+    BEGIN
+        INSERT INTO GRUPO_3312.detalle_pedido (det_ped_numero, det_ped_sillon, det_ped_precio, det_ped_cantidad, det_ped_subtotal)
+        SELECT
+            Pedido_Numero,
+            Sillon_Codigo,
+            Detalle_Pedido_Precio,
+            Detalle_Pedido_Cantidad,
+            Detalle_Pedido_SubTotal
+        FROM gd_esquema.Maestra m1
+        where Pedido_Numero is not null and Detalle_Pedido_Precio is not null and Sillon_Codigo is not null
+    END
+GO
+
+CREATE PROCEDURE migrar_detalle_facturas
+AS
+    BEGIN
+    INSERT INTO GRUPO_3312.detalle_factura (det_fact_numero, det_fact_numeroPedido, det_fact_cantidad, det_fact_precio, det_fact_subtotal)
     SELECT
-        (select tela_material from gd_esquema.Maestra m2 join GRUPO_3312.tela t1
-        on m2.Tela_Color + m2.Tela_Textura = t1.tela_color + t1.tela_textura
-        where m2.Sillon_Codigo = m1.Sillon_Codigo
-		group by tela_material),
-        (select madera_material from gd_esquema.Maestra m2 join GRUPO_3312.madera
-        on madera_color + madera_dureza = m2.Madera_Color + m2.Madera_Dureza
-        where m2.Sillon_Codigo = m1.Sillon_Codigo
-		group by mad_material),
-        (select relleno_material from gd_esquema.Maestra m2 join GRUPO_3312.relleno
-         on relleno_densidad = m2.Relleno_Densidad
-         where m2.Sillon_Codigo = m1.Sillon_Codigo
-		 group by relleno_material)
+        Factura_Numero,
+        Pedido_Numero,
+        Detalle_Factura_Cantidad,
+        Detalle_Factura_Precio,
+        Detalle_Factura_SubTotal
     FROM gd_esquema.Maestra m1
-    WHERE m1.Sillon_Codigo is not null
+    where Factura_Numero is not null and Detalle_Factura_Precio is not null and Sillon_Codigo is null
     END
 GO
 
-CREATE PROCEDURE migrar_sillon
-AS
-    BEGIN
-    INSERT INTO GRUPO_3312.sillon (composicion_tela, composicion_madera, composicion_relleno)
-    (select sill_mod_codigo from GRUPO_3312.sillon_modelo
-
-    )
-    END
-
-exec migrar_ubicacion
+exec migrar_ubicaciones
 exec migrar_clientes
 exec migrar_sucursales
 exec migrar_proveedores
@@ -313,23 +397,14 @@ exec migrar_facturas
 exec migrar_compras
 exec migrar_pedidos
 exec migrar_pedidos_cancelados
-exec migrar_sillon_modelo
+exec migrar_sillon_modelos
 exec migrar_sillon_medidas
 exec migrar_materiales
+exec migrar_telas
+exec migrar_maderas
+exec migrar_rellenos
+exec migrar_composiciones
+exec migrar_sillones
+exec migrar_detalle_pedidos
+exec migrar_detalle_facturas
 
-
-select * from GRUPO_3312.sillon_modelo
-
-
-
-
-
-select ped_canc_pedido from GRUPO_3312.pedido_cancelacion
-group by ped_canc_pedido
-
-
-select Sillon_Medida_Alto, Sillon_Medida_Ancho, Sillon_Medida_Profundidad, Sillon_Medida_Precio from gd_esquema.Maestra
-where Sillon_Codigo is not null
-group by Sillon_Medida_Alto, Sillon_Medida_Ancho, Sillon_Medida_Profundidad, Sillon_Medida_Precio
-
-select * from GRUPO_3312.material 

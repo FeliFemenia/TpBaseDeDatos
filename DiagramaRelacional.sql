@@ -286,7 +286,7 @@ CREATE TABLE [GRUPO_3312].[detalle_pedido] (
     det_ped_sillon bigint NOT NULL,
     det_ped_precio decimal(18,2) NOT NULL,
     det_ped_cantidad bigint NOT NULL,
-    det_ped_subprecio decimal(18,2)
+    det_ped_subtotal decimal(18,2)
 )
 
 ALTER TABLE [GRUPO_3312].[detalle_pedido]

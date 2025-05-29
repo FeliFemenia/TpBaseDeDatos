@@ -41,3 +41,24 @@ DROP TABLE [GRUPO_3312].[cliente]
 DROP TABLE [GRUPO_3312].[ubicacion]
 
 DROP SCHEMA GRUPO_3312
+
+DROP PROCEDURE migrar_ubicaciones
+DROP PROCEDURE migrar_clientes
+DROP PROCEDURE migrar_sucursales
+DROP PROCEDURE migrar_proveedores
+DROP PROCEDURE migrar_envios
+DROP PROCEDURE migrar_facturas
+DROP PROCEDURE migrar_compras
+DROP PROCEDURE migrar_pedidos
+DROP PROCEDURE migrar_pedidos_cancelados
+DROP PROCEDURE migrar_sillon_modelos
+DROP PROCEDURE migrar_sillon_medidas
+DROP PROCEDURE migrar_materiales
+DROP PROCEDURE migrar_detalle_compras
+DROP PROCEDURE migrar_telas
+DROP PROCEDURE migrar_maderas
+DROP PROCEDURE migrar_rellenos
+DROP PROCEDURE migrar_composiciones
+DROP PROCEDURE migrar_sillones
+DROP PROCEDURE migrar_detalle_pedidos
+DROP PROCEDURE migrar_detalle_facturas
