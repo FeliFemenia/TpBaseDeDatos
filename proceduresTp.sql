@@ -316,10 +316,7 @@ exec migrar_pedidos_cancelados
 exec migrar_sillon_modelo
 exec migrar_sillon_medidas
 exec migrar_materiales
-exec migrar_tela
-exec migrar_maderas
-exec migrar_relleno
-exec migrar_composicion
+
 
 select * from GRUPO_3312.sillon_modelo
 

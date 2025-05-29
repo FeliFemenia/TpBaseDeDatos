@@ -219,7 +219,7 @@ CREATE TABLE [GRUPO_3312].[relleno] (
 )
 
 ALTER TABLE [GRUPO_3312].[relleno]
-ADD CONSTRAINT FK_relleno_material FOREIGN KEY (rell_material) REFERENCES GRUPO_3312.material(mat_codigo)
+ADD CONSTRAINT FK_relleno_material FOREIGN KEY (relleno_material) REFERENCES GRUPO_3312.material(mat_codigo)
 GO
 
 CREATE TABLE [GRUPO_3312].[madera] (
@@ -231,7 +231,7 @@ CREATE TABLE [GRUPO_3312].[madera] (
 )
 
 ALTER TABLE [GRUPO_3312].[madera]
-ADD CONSTRAINT FK_madera_material FOREIGN KEY (mad_material) REFERENCES GRUPO_3312.material(mat_codigo)
+ADD CONSTRAINT FK_madera_material FOREIGN KEY (madera_material) REFERENCES GRUPO_3312.material(mat_codigo)
 GO
 
 CREATE TABLE [GRUPO_3312].[composicion] (
@@ -242,19 +242,19 @@ CREATE TABLE [GRUPO_3312].[composicion] (
 )
 
 ALTER TABLE [GRUPO_3312].[composicion]
-ADD CONSTRAINT PK_composicion PRIMARY KEY (comp_id)
+ADD CONSTRAINT PK_composicion PRIMARY KEY (composicion_id)
 GO
 
 ALTER TABLE [GRUPO_3312].[composicion]
-ADD CONSTRAINT FK_comp_tela FOREIGN KEY (comp_tela) REFERENCES GRUPO_3312.material(mat_codigo)
+ADD CONSTRAINT FK_comp_tela FOREIGN KEY (composicion_tela) REFERENCES GRUPO_3312.material(mat_codigo)
 GO
 
 ALTER TABLE [GRUPO_3312].[composicion]
-ADD CONSTRAINT FK_comp_madera FOREIGN KEY (comp_madera) REFERENCES GRUPO_3312.material(mat_codigo)
+ADD CONSTRAINT FK_comp_madera FOREIGN KEY (composicion_madera) REFERENCES GRUPO_3312.material(mat_codigo)
 GO
 
 ALTER TABLE [GRUPO_3312].[composicion]
-ADD CONSTRAINT FK_comp_relleno FOREIGN KEY (comp_relleno) REFERENCES GRUPO_3312.material(mat_codigo)
+ADD CONSTRAINT FK_comp_relleno FOREIGN KEY (composicion_relleno) REFERENCES GRUPO_3312.material(mat_codigo)
 GO
 
 CREATE TABLE [GRUPO_3312].[sillon] (
@@ -278,7 +278,7 @@ ADD CONSTRAINT FK_sillon_medida FOREIGN KEY (sill_medida) REFERENCES GRUPO_3312.
 GO
 
 ALTER TABLE [GRUPO_3312].[sillon]
-ADD CONSTRAINT FK_sillon_composicion FOREIGN KEY (sill_composicion) REFERENCES GRUPO_3312.composicion(comp_id)
+ADD CONSTRAINT FK_sillon_composicion FOREIGN KEY (sill_composicion) REFERENCES GRUPO_3312.composicion(composicion_id)
 GO
 
 CREATE TABLE [GRUPO_3312].[detalle_pedido] (
