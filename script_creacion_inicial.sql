@@ -731,4 +731,4 @@ BEGIN
 END
 GO
 
-
+exec migrar_maestra
