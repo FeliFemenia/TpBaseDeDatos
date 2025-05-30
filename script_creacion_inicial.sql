@@ -403,8 +403,8 @@ GO
 /*
 Este Procedure busca migrar todos los clientes presentes en la tabla maestra.
 Ademas, buscara segun la ubicacion del cliente, en la tabla de ubicacion
-*/CREATE PROCEDURE migrar_clientes
- */
+*/
+CREATE PROCEDURE migrar_clientes
     AS
 BEGIN
     INSERT INTO GRUPO_3312.cliente (clie_dni, clie_ubicacion, clie_nombre, clie_apellido, clie_fechaNacimiento, clie_mail, clie_telefono)
