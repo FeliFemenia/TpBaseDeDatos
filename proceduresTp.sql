@@ -388,23 +388,31 @@ AS
     END
 GO
 
-exec migrar_ubicaciones
-exec migrar_clientes
-exec migrar_sucursales
-exec migrar_proveedores
-exec migrar_envios
-exec migrar_facturas
-exec migrar_compras
-exec migrar_pedidos
-exec migrar_pedidos_cancelados
-exec migrar_sillon_modelos
-exec migrar_sillon_medidas
-exec migrar_materiales
-exec migrar_telas
-exec migrar_maderas
-exec migrar_rellenos
-exec migrar_composiciones
-exec migrar_sillones
-exec migrar_detalle_pedidos
-exec migrar_detalle_facturas
+CREATE PROCEDURE migrar_maestra
+    AS
+BEGIN
+
+    exec migrar_ubicaciones
+    exec migrar_clientes
+    exec migrar_sucursales
+    exec migrar_proveedores
+    exec migrar_envios
+    exec migrar_facturas
+    exec migrar_compras
+    exec migrar_pedidos
+    exec migrar_pedidos_cancelados
+    exec migrar_sillon_modelos
+    exec migrar_sillon_medidas
+    exec migrar_materiales
+    exec migrar_telas
+    exec migrar_maderas
+    exec migrar_rellenos
+    exec migrar_composiciones
+    exec migrar_sillones
+    exec migrar_detalle_pedidos
+    exec migrar_detalle_facturas
+
+END
+GO
+
 
