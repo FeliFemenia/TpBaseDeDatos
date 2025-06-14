@@ -43,3 +43,6 @@ DROP TABLE [GRUPO_3312].[localidad]
 DROP TABLE [GRUPO_3312].[provincia]
 
 -- DROP SCHEMA GRUPO_3312
+
+DROP PROCEDURE crear_tablas
+DROP PROCEDURE migrar_datos

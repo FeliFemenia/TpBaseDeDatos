@@ -377,7 +377,7 @@ begin
 end
 go -- Ojo con la creacion del schema
 
-alter procedure migrar_datos
+create procedure migrar_datos
 as
 begin
 
@@ -743,4 +743,3 @@ exec migrar_datos -- 15 segundos
 
 	Total: 16.4 seg aprox
 */
-select * from GRUPO_3312.sillon_medida
