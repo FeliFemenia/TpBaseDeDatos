@@ -54,7 +54,8 @@ begin
 	-- Sentencia que crea la tabla sucursal junto con sus atributos.
 	CREATE TABLE [GRUPO_3312].[sucursal] (
 		suc_numero bigint NOT NULL,
-		suc_direccion nvarchar(255) ,
+		suc_direccion nvarchar(255),
+		suc_localidad bigint not null, 
 		suc_telefono nvarchar(255),
 		suc_mail nvarchar(255)
 	)
@@ -63,29 +64,28 @@ begin
 	ALTER TABLE [GRUPO_3312].[sucursal]
 	ADD CONSTRAINT PK_sucursal PRIMARY KEY (suc_numero)
 	
-
-	-- Sentencia que crea la foreign key "suc_ubicacion".
+	-- Sentencia que crea la foreign key "clie_ubicacion".
 	ALTER TABLE [GRUPO_3312].[sucursal]
-	ADD CONSTRAINT FK_sucursal_ubi FOREIGN KEY (suc_ubicacion) REFERENCES GRUPO_3312.ubicacion(ubi_codigo)
-	
+	ADD CONSTRAINT FK_suc_loc FOREIGN KEY (suc_localidad) REFERENCES GRUPO_3312.localidad(loc_codigo)
 
 	-- Sentencia que crea la tabla proveedor junto con sus atributos.
 	CREATE TABLE [GRUPO_3312].[proveedor] (
-		prov_cuit nvarchar(255) NOT NULL,
-		prov_ubicacion bigint NOT NULL,
-		prov_razonSocial nvarchar(255),
-		prov_telefono nvarchar(255),
-		prov_mail nvarchar(255)
+		prove_cuit nvarchar(255) NOT NULL,
+		prove_direccion nvarchar(255),
+		prove_localidad bigint,
+		prove_razonSocial nvarchar(255),
+		prove_telefono nvarchar(255),
+		prove_mail nvarchar(255)
 	)
 
 	-- Sentencia que crea la primary key "prov_cuit".
 	ALTER TABLE [GRUPO_3312].[proveedor]
-	ADD CONSTRAINT PK_proveedor PRIMARY KEY (prov_cuit)
+	ADD CONSTRAINT PK_proveedor PRIMARY KEY (prove_cuit)
 	
 
-	-- Sentencia que crea la foreign key "prov_ubicacion".
+	-- Sentencia que crea la foreign key "clie_ubicacion".
 	ALTER TABLE [GRUPO_3312].[proveedor]
-	ADD CONSTRAINT FK_proveedor_ubi FOREIGN KEY (prov_ubicacion) REFERENCES GRUPO_3312.ubicacion(ubi_codigo)
+	ADD CONSTRAINT FK_suc_loc FOREIGN KEY (prove_localidad) REFERENCES GRUPO_3312.localidad(loc_codigo)
 	
 
 	CREATE TABLE [GRUPO_3312].[envio] (
@@ -421,20 +421,47 @@ begin
     SELECT
         m2.Cliente_Dni,
         m2.Cliente_Direccion,
-		(select loc_codigo from GRUPO_3312.localidad where loc_detalle = m2.Cliente_Localidad),
+		(select loc_codigo from GRUPO_3312.localidad 
+		where loc_detalle = m2.Cliente_Localidad and loc_provincia = (select prov_codigo from GRUPO_3312.provincia where m2.Cliente_Provincia = prov_detalle)),
         m2.Cliente_Nombre, m2.Cliente_Apellido, m2.Cliente_FechaNacimiento, m2.Cliente_Mail, m2.Cliente_Telefono
     from gd_esquema.Maestra m2
     WHERE m2.Cliente_Dni is not null and m2.Cliente_Direccion is not null
-    group by Cliente_Dni, m2.Cliente_Nombre, m2.Cliente_Apellido, m2.Cliente_FechaNacimiento, m2.Cliente_Mail, m2.Cliente_Telefono, m2.Cliente_Localidad, m2.Cliente_Direccion
+    group by Cliente_Dni, m2.Cliente_Nombre, m2.Cliente_Apellido, m2.Cliente_FechaNacimiento, m2.Cliente_Mail, m2.Cliente_Telefono, m2.Cliente_Localidad, m2.Cliente_Direccion, m2.Cliente_Provincia
+
+	-- Migracion sucursales
+
+	INSERT INTO GRUPO_3312.sucursal (suc_numero, suc_direccion, suc_localidad, suc_telefono, suc_mail)
+    SELECT
+        m2.Sucursal_NroSucursal,
+        m2.Sucursal_Direccion,
+		(select loc_codigo from GRUPO_3312.localidad 
+		where loc_detalle = m2.Sucursal_Localidad
+		and loc_provincia = (select prov_codigo from GRUPO_3312.provincia where m2.Sucursal_Provincia = prov_detalle)),
+        m2.Sucursal_Telefono, m2.Sucursal_Mail
+    from gd_esquema.Maestra m2
+    WHERE m2.Sucursal_NroSucursal is not null
+    group by m2.Sucursal_NroSucursal, m2.Sucursal_Telefono, m2.Sucursal_Mail, m2.Sucursal_Direccion, m2.Sucursal_Provincia, m2.Sucursal_Localidad
+
+	INSERT INTO GRUPO_3312.proveedor (prove_cuit, prove_direccion, prove_localidad, prove_razonSocial, prove_telefono, prove_mail)
+    SELECT
+        m2.Proveedor_Cuit,
+        m2.Proveedor_Direccion,
+		(select loc_codigo from GRUPO_3312.localidad 
+		where loc_detalle = m2.Proveedor_Localidad
+		and loc_provincia = (select prov_codigo from GRUPO_3312.provincia where m2.Proveedor_Provincia = prov_detalle)),
+        m2.Proveedor_RazonSocial, m2.Proveedor_Telefono, m2.Proveedor_Mail
+    from gd_esquema.Maestra m2
+    WHERE m2.Proveedor_Cuit is not null
+    group by m2.Proveedor_Cuit, m2.Proveedor_RazonSocial, m2.Proveedor_Telefono, 
+	m2.Proveedor_Mail, m2.Proveedor_Direccion, m2.Proveedor_Localidad, m2.Proveedor_Provincia
 end
 
 exec migrar_datos
 
 delete GRUPO_3312.provincia
 delete GRUPO_3312.localidad
-
-select loc_detalle, count(*) from GRUPO_3312.localidad
-group by loc_detalle
-ORDER BY count(*) desc
+DELETE GRUPO_3312.cliente
+DELETE GRUPO_3312.sucursal
+DELETE GRUPO_3312.proveedor
 
 
