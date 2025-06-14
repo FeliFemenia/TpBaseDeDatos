@@ -377,11 +377,11 @@ begin
 end
 go -- Ojo con la creacion del schema
 
-create procedure migrar_datos
+alter procedure migrar_datos
 as
 begin
 
-	-- Migracion de provincias
+	-- Migracion de provincias (24 rows)
 
 	INSERT INTO GRUPO_3312.provincia(prov_detalle)
 	(SELECT Proveedor_Provincia from gd_esquema.Maestra
@@ -403,8 +403,7 @@ begin
 	where Cliente_Localidad is not null and Cliente_Provincia is not null
 	union 
 	select (select prov_codigo from GRUPO_3312.provincia where prov_detalle = Sucursal_Provincia), Sucursal_Localidad from gd_esquema.Maestra
-	where Sucursal_Localidad is not null and Sucursal_Provincia is not null
-	)
+	where Sucursal_Localidad is not null and Sucursal_Provincia is not null)
 
 	-- Migracion de clientes
 
@@ -461,16 +460,16 @@ begin
     SELECT
         m2.Factura_Numero,
         (select suc_numero from GRUPO_3312.sucursal join gd_esquema.Maestra m1
-         on m1.Sucursal_NroSucursal = suc_numero
+         on m1.Sucursal_NroSucursal = suc_numero and m1.Factura_Numero is not null and m1.Detalle_Factura_Precio is null
          where m2.Factura_numero = m1.Factura_Numero
          group by suc_numero) suc_numero,
         (select clie_dni from GRUPO_3312.cliente join gd_esquema.Maestra m1
          on m1.Cliente_DNI = clie_dni
-         where m2.Factura_numero = m1.Factura_Numero
+         where m2.Factura_numero = m1.Factura_Numero and m1.Factura_Numero is not null and m1.Detalle_Factura_Precio is null
          group by clie_dni) clie_dni,
         (select env_numero from GRUPO_3312.envio join gd_esquema.Maestra m1
          on m1.Envio_Numero = env_numero
-         where m1.Envio_Numero = m2.Envio_Numero
+         where m1.Envio_Numero = m2.Envio_Numero and m1.Factura_Numero is not null and m1.Detalle_Factura_Precio is null
 		 group by env_numero) env_numero,
         m2.Factura_Total, m2.Factura_Fecha
     from gd_esquema.Maestra m2
@@ -483,11 +482,11 @@ begin
     SELECT
         m2.Compra_Numero,
         (select suc_numero from GRUPO_3312.sucursal join gd_esquema.Maestra m1
-        on suc_numero = m1.Sucursal_NroSucursal
+        on suc_numero = m1.Sucursal_NroSucursal and m1.Compra_Numero is not null
         where m1.Compra_Numero = m2.Compra_Numero
         group by suc_numero),
         (select prove_cuit from GRUPO_3312.proveedor join gd_esquema.Maestra m1
-         on prove_cuit = m1.Proveedor_Cuit
+         on prove_cuit = m1.Proveedor_Cuit and m1.Compra_Numero is not null
          where m1.Compra_Numero = m2.Compra_Numero
          group by prove_cuit),
         m2.Compra_Fecha,
@@ -502,11 +501,11 @@ begin
     SELECT
         m2.Pedido_Numero,
         (select suc_numero from GRUPO_3312.sucursal join gd_esquema.Maestra m1
-          on suc_numero = m1.Sucursal_NroSucursal
+          on suc_numero = m1.Sucursal_NroSucursal and m1.Pedido_Numero is not null
           where m1.Pedido_Numero = m2.Pedido_Numero
 		  group by suc_numero),
         (select clie_dni from GRUPO_3312.cliente join gd_esquema.Maestra m1
-         on clie_dni = m1.Cliente_Dni
+         on clie_dni = m1.Cliente_Dni and m1.Pedido_Numero is not null
          where m1.Pedido_Numero = m2.Pedido_Numero
 		 group by clie_dni),
         m2.Pedido_Fecha,
@@ -521,7 +520,7 @@ begin
 	INSERT INTO GRUPO_3312.pedido_cancelacion (ped_canc_pedido, ped_canc_motivo, ped_canc_fecha)
     SELECT
         (select ped_numero from GRUPO_3312.pedido join gd_esquema.Maestra m1
-        on ped_numero = m1.Pedido_Numero
+        on ped_numero = m1.Pedido_Numero and m1.Pedido_Numero is not null and m1.Pedido_Cancelacion_Motivo is not null
         where m2.Pedido_Numero = m1.Pedido_Numero
         group by ped_numero),
         m2.Pedido_Cancelacion_Motivo,
@@ -576,7 +575,7 @@ begin
 
 	INSERT INTO GRUPO_3312.tela (tela_material, tela_color, tela_textura, tela_nombre, tela_descripcion)
         SELECT (select mat_codigo from GRUPO_3312.material join gd_esquema.Maestra m2
-               on m2.Material_Tipo = mat_tipo and m2.Material_Precio = mat_precio
+               on m2.Material_Tipo = mat_tipo and m2.Material_Precio = mat_precio and m2.Material_Tipo is not null and m2.Tela_Color is not null
                WHERE Material_Tipo is not null
                     and m1.Tela_Color = m2.Tela_Color
                     and m1.Tela_Textura = m2.Tela_Textura
@@ -595,7 +594,7 @@ begin
 		INSERT INTO GRUPO_3312.madera (madera_material, madera_color, madera_dureza, madera_nombre, madera_descripcion)
     SELECT
         (select mat_codigo from GRUPO_3312.material join gd_esquema.Maestra m2
-         on m2.Material_Tipo = mat_tipo and m2.Material_Precio = mat_precio
+         on m2.Material_Tipo = mat_tipo and m2.Material_Precio = mat_precio and m2.Material_Tipo is not null and m2.Madera_Dureza is not null
          WHERE Material_Tipo is not null
             and m1.Madera_Dureza = m2.Madera_Dureza
             and m1.Madera_Color = m2.Madera_Color
@@ -613,7 +612,7 @@ begin
 
 	INSERT INTO GRUPO_3312.relleno(relleno_material, relleno_densidad, relleno_nombre, relleno_descripcion)
     SELECT (select mat_codigo from GRUPO_3312.material join gd_esquema.Maestra m2
-            on m2.Material_Tipo = mat_tipo and m2.Material_Precio = mat_precio
+            on m2.Material_Tipo = mat_tipo and m2.Material_Precio = mat_precio and m2.Material_Tipo is not null and m2.Relleno_Densidad is not null
             WHERE Material_Tipo is not null
                and m1.Relleno_Densidad = m2.Relleno_Densidad
                and m1.Material_Descripcion = m2.Material_Descripcion
@@ -622,7 +621,7 @@ begin
            m1.Material_Nombre,
            m1.Material_Descripcion
     from gd_esquema.Maestra m1
-    WHERE Material_Tipo is not null and m1.Relleno_Densidad is not null
+    WHERE m1.Material_Tipo is not null and m1.Relleno_Densidad is not null
     group by m1.Relleno_Densidad, m1.Material_Nombre, m1.Material_Descripcion
 
 	-- Migracion de composicion
@@ -631,16 +630,13 @@ begin
     declare cursor_composicion CURSOR LOCAL FORWARD_ONLY STATIC FOR
         SELECT
             (select tela_material from gd_esquema.Maestra m2 join GRUPO_3312.tela t1
-            on m2.Tela_Color + m2.Tela_Textura + tela_descripcion = t1.tela_color + t1.tela_textura + m2.Material_Descripcion
-            where m2.Sillon_Codigo = m1.Sillon_Codigo
+            on m2.Sillon_Codigo = m1.Sillon_Codigo and m2.Tela_Color + m2.Tela_Textura + tela_descripcion = t1.tela_color + t1.tela_textura + m2.Material_Descripcion
             group by t1.tela_material),
             (select madera_material from gd_esquema.Maestra m2 join GRUPO_3312.madera t1
-            on t1.madera_color + t1.madera_dureza + t1.madera_descripcion = m2.Madera_Color + m2.Madera_Dureza + m2.Material_Descripcion
-            where m2.Sillon_Codigo = m1.Sillon_Codigo
-            group by t1.madera_material),
+            on m2.Sillon_Codigo = m1.Sillon_Codigo and t1.madera_color + t1.madera_dureza + t1.madera_descripcion = m2.Madera_Color + m2.Madera_Dureza + m2.Material_Descripcion
+			group by t1.madera_material),
             (select relleno_material from gd_esquema.Maestra m2 join GRUPO_3312.relleno r1
-             on r1.relleno_densidad = m2.Relleno_Densidad and m2.Material_Descripcion = r1.relleno_descripcion
-             where m2.Sillon_Codigo = m1.Sillon_Codigo
+             on m2.Sillon_Codigo = m1.Sillon_Codigo and r1.relleno_densidad = m2.Relleno_Densidad and m2.Material_Descripcion = r1.relleno_descripcion
              group by r1.relleno_material)
         FROM gd_esquema.Maestra m1
         WHERE m1.Sillon_Codigo is not null
@@ -685,8 +681,8 @@ begin
                                             on m2.Sillon_Codigo = m1.Sillon_Codigo
                                             and madera_descripcion = m2.Material_Descripcion)
                  and composicion_relleno in (select relleno_material from GRUPO_3312.relleno join gd_esquema.Maestra m2
-                                             on m2.Sillon_Codigo = m1.Sillon_Codigo
-                                             and relleno_descripcion = m2.Material_Descripcion)
+                                             on m2.Sillon_Codigo = m1.Sillon_Codigo 
+                                             and relleno_descripcion = m2.Material_Descripcion) 
                 )
             FROM gd_esquema.Maestra m1
             Where m1.Sillon_Codigo is not null
@@ -720,9 +716,7 @@ end
 go
 
 exec crear_tablas -- 0 segundos
-exec migrar_datos -- 24 segundos
-
-select * from GRUPO_3312.detalle_pedido
+exec migrar_datos -- 15 segundos
 
 /*Querys costs:
 	provincia: 1 seg
@@ -734,7 +728,7 @@ select * from GRUPO_3312.detalle_pedido
 	factura: 1 seg
 	compras: 1 seg
 	pedido: 1 seg
-	pedidos cancelados: 9 seg
+	pedidos cancelados: 0.1 seg
 	modelo sillones: 0.2 seg
 	medida sillones: 0.2 seg
 	material: 0.2 seg
@@ -743,9 +737,10 @@ select * from GRUPO_3312.detalle_pedido
 	madera: 0.3 seg
 	relleno: 0.3 seg
 	composicion: 5 seg
-	sillon: 2 seg
-	detalle pedido: 1 seg
+	sillon: 3 seg
+	detalle pedido: 0.5 seg
 	detalle factura: 0.5 seg
 
-	Total: 24.8 seg aprox
+	Total: 16.4 seg aprox
 */
+select * from GRUPO_3312.sillon_medida
