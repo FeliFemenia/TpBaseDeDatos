@@ -4,7 +4,6 @@ GO
 create procedure crear_tablas 
 as
 begin
-
 	create table [Grupo_3312].[provincia] (
 		prov_codigo BIGINT identity(1,1) not null, 
 		prov_detalle nvarchar(255) not null
@@ -379,4 +378,4 @@ begin
 	ALTER TABLE [GRUPO_3312].[detalle_factura]
 	ADD CONSTRAINT FK_det_fac_numeroPedido FOREIGN KEY (det_fact_numeroPedido) REFERENCES GRUPO_3312.pedido(ped_numero)
 end
-go
+go -- Ojo con la creacion del schema
