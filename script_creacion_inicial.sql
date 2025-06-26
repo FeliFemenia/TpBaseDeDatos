@@ -1,4 +1,4 @@
-create procedure crear_tablas 
+alter procedure crear_tablas 
 as
 begin
 
@@ -144,7 +144,14 @@ begin
 	-- Sentencia que crea la foreign key "comp_proveedor".
 	ALTER TABLE [GRUPO_3312].[compra]
 	ADD CONSTRAINT FK_compra_proveedor FOREIGN KEY (comp_proveedor) REFERENCES GRUPO_3312.proveedor(prove_cuit)
-	
+
+    CREATE TABLE [GRUPO_3312].[pedido_estado] (
+        estado_numero bigint Identity(1,1) not null,
+        estado_nombre nvarchar(255) not null
+    )
+
+	ALTER TABLE [GRUPO_3312].[pedido_estado]
+	ADD CONSTRAINT PK_pedido_estado PRIMARY KEY (estado_numero)
 
 	-- Sentencia que crea la tabla pedido junto con sus atributos.
 	CREATE TABLE [GRUPO_3312].[pedido] (
@@ -153,7 +160,7 @@ begin
 		ped_cliente bigint NOT NULL,
 		ped_fecha datetime2(6),
 		ped_total decimal(18,0),
-		ped_estado nvarchar(255)
+		ped_estado bigint
 	)
 
 	-- Sentencia que crea la primary key "ped_numero".
@@ -169,9 +176,12 @@ begin
 	-- Sentencia que crea la foreign key "ped_cliente".
 	ALTER TABLE [GRUPO_3312].[pedido]
 	ADD CONSTRAINT FK_pedido_cliente FOREIGN KEY (ped_cliente) REFERENCES GRUPO_3312.cliente(clie_dni)
-	
 
-	-- Sentencia que crea la tabla pedido_cancelacion junto con sus atributos.
+    ALTER TABLE [GRUPO_3312].[pedido]
+    ADD CONSTRAINT FK_pedido_estado FOREIGN KEY (ped_estado) REFERENCES GRUPO_3312.pedido_estado(estado_numero)
+
+
+    -- Sentencia que crea la tabla pedido_cancelacion junto con sus atributos.
 	CREATE TABLE [GRUPO_3312].[pedido_cancelacion] (
 		ped_canc_pedido decimal(18,0),
 		ped_canc_motivo varchar(255),
@@ -382,7 +392,7 @@ begin
 end
 go -- Ojo con la creacion del schema
 
-create procedure migrar_datos
+alter procedure migrar_datos
 as
 begin
 
@@ -495,6 +505,13 @@ begin
 	where Compra_Numero is not null
 	group by Compra_Numero, Compra_Fecha, Compra_Total, Sucursal_NroSucursal, Proveedor_Cuit
 
+    -- Migracion de estados (3? rows)
+
+    INSERT INTO GRUPO_3312.pedido_estado
+    select Pedido_Estado from gd_esquema.Maestra
+    WHERE Pedido_Estado is not null
+    GROUP BY Pedido_Estado
+
 	-- Migracion de pedidos (20509 rows)
 
 	INSERT INTO GRUPO_3312.pedido (ped_numero, ped_sucursal, ped_cliente, ped_fecha, ped_total, ped_estado)
@@ -508,7 +525,8 @@ begin
 		 group by clie_dni),
         Pedido_Fecha,
         Pedido_Total,
-        Pedido_Estado
+        (select estado_numero from GRUPO_3312.pedido_estado
+        where estado_nombre = Pedido_Estado)
     from gd_esquema.Maestra
 	WHERE Pedido_Numero is not null
 	group by Pedido_Numero, Pedido_Fecha, Pedido_Total, Pedido_Estado, Cliente_Dni, Sucursal_NroSucursal
@@ -693,7 +711,10 @@ begin
         Factura_Numero,
         Pedido_Numero,
         (select top 1 det_ped_sillon from grupo_3312.detalle_pedido 
-            where det_ped_numero = Pedido_Numero and Detalle_Factura_Cantidad = det_ped_cantidad and Detalle_Pedido_Precio = det_ped_precio and det_ped_subtotal = Detalle_Pedido_SubTotal),
+            where det_ped_numero = Pedido_Numero 
+			and Detalle_Factura_Cantidad = det_ped_cantidad 
+			and Detalle_Pedido_Precio = det_ped_precio 
+			and det_ped_subtotal = Detalle_Pedido_SubTotal),
         Detalle_Factura_Cantidad,
         Detalle_Factura_Precio,
         Detalle_Factura_SubTotal
@@ -705,13 +726,9 @@ go
 
 CREATE SCHEMA GRUPO_3312
 GO
+
 exec crear_tablas -- 0 segundos
 exec migrar_datos -- 10 segundos
-
-select * from gd_esquema.Maestra
-where Pedido_Numero = '56361316'
-
-select * from GRUPO_3312.detalle_pedido
 
 /*Querys costs:
 	provincia: 0.2 seg
