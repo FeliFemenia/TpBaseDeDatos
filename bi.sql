@@ -385,7 +385,67 @@ group by suc_numero, tiempo_mes
 go
 
 SELECT * FROM ganancias
+go
 
+--Vista 2: Factura promedio mensual
+
+create view factura_promedio_mensual (provincia, cuatrimestre, anio, promedio)
+as
+select 
+ubicacion_provincia, 
+tiempo_cuatrimestre,
+tiempo_anio,
+sum(detalle_factura_cantidad * detalle_factura_precio) / count(distinct factura_id)
+from GRUPO_3312.BI_tiempo
+join GRUPO_3312.BI_factura on dim_factura_tiempo = tiempo_id
+join GRUPO_3312.BI_detalle_factura on detalle_factura_numero = factura_id
+join GRUPO_3312.BI_sucursal on dim_factura_sucursal = suc_numero
+join GRUPO_3312.BI_ubicacion on ubicacion_id = suc_ubicacion
+group by ubicacion_provincia, tiempo_cuatrimestre, tiempo_anio
+go
+
+select * from factura_promedio_mensual
+go
+
+--Vista 4: Volumen de pedidos
+
+alter view volumen_de_pedidos (anio, mes, sucursal, turno, cantidad_pedidos)
+as
+select 
+tiempo_anio, 
+tiempo_mes, 
+suc_numero, 
+turno_venta_id,
+count(distinct pedido_numero) 
+from GRUPO_3312.BI_sucursal
+join GRUPO_3312.BI_pedido on dim_pedido_sucursal = suc_numero
+join GRUPO_3312.BI_turno_venta on turno_venta_id = dim_pedido_turno
+join GRUPO_3312.BI_tiempo on tiempo_id = dim_pedido_tiempo
+group by tiempo_anio, tiempo_mes, suc_numero, turno_venta_id 
+go
+
+select * from volumen_de_pedidos
+go
+
+--Vista 5: Conversion de pedidos
+
+alter view conversion_de_pedidos (sucursal, cuatrimestre, estado, porcentaje)
+as
+select 
+suc_numero, 
+tiempo_cuatrimestre, 
+estado_pedido_estado,
+((count(pedido_numero) * 100) / (select count(*) from GRUPO_3312.BI_pedido 
+								where dim_pedido_tiempo = tiempo_id and dim_pedido_sucursal = suc_numero)) 
+from GRUPO_3312.sucursal
+join GRUPO_3312.BI_pedido on dim_pedido_sucursal = suc_numero
+join GRUPO_3312.BI_estado_pedido on estado_pedido = dim_pedido_estado
+join GRUPO_3312.BI_tiempo on tiempo_id = dim_pedido_tiempo
+group by suc_numero, estado_pedido_estado, tiempo_cuatrimestre, tiempo_id
+go
+
+select * from conversion_de_pedidos
+go
 
 --Vista 7: Importe promedio de compras por mes
 
@@ -399,3 +459,26 @@ as
 go
 
 select * from promedio_de_compras
+go
+
+--Vista 8: Compras por tipo de material
+
+create view compras_por_tipo_de_material (cuatrimestre, sucursal, tipo_material, importe_total)
+as
+select 
+tiempo_cuatrimestre, 
+suc_numero, 
+detalle_material,
+sum(det_compra_cantidad * det_compra_precio)
+from GRUPO_3312.BI_sucursal
+join GRUPO_3312.BI_compra on dim_compra_sucursal = suc_numero
+join GRUPO_3312.BI_detalle_compra on det_compra_numero = compra_numero
+join GRUPO_3312.BI_tiempo on tiempo_id = dim_compra_tiempo 
+join GRUPO_3312.BI_tipo_material on tipo_material = dim_det_compra_material
+group by tiempo_cuatrimestre, suc_numero, tipo_material, detalle_material
+go
+
+select * from compras_por_tipo_de_material
+
+
+
