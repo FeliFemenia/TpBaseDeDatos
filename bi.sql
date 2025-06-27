@@ -12,14 +12,29 @@ RETURN CASE
 END
 GO
 
+create function obtener_dim_tiempo (@fecha datetime)
+    returns bigint
+as
+begin
+    declare @tiempo_id bigint
+    set @tiempo_id = 0
+
+    set @tiempo_id = (select tiempo_id from GRUPO_3312.BI_tiempo where tiempo_mes = month(@fecha)
+            and tiempo_anio = year(@fecha)
+            and tiempo_cuatrimestre = dbo.transformar_a_cuatrimestre(@fecha))
+
+    return @tiempo_id
+end
+go
+
 alter procedure crear_modelo_bi
 as
 begin
 
     create table [Grupo_3312].[BI_rango_etario] (
         rango_etario_id bigint identity(1,1) not null,
-        rango_etario_edad_minima bigint not null,
-        rango_etario_edad_maxima bigint not null
+        rango_etario_min bigint not null,
+        rango_etario_max bigint not null
     )
 
     alter table [Grupo_3312].[BI_rango_etario]
@@ -54,12 +69,12 @@ begin
     add constraint PK_BI_turno_venta primary key (turno_venta_id)
 
     create table [Grupo_3312].[BI_tipo_material] (
-        tipo_material bigint identity(1,1) not null,
-        detalle_material nvarchar(255) not null
+        tipo_material_id bigint identity(1,1) not null,
+        tipo_material_detalle nvarchar(255) not null
     )
 
     alter table [Grupo_3312].[BI_tipo_material]
-    add constraint PK_BI_tipo_material primary key (tipo_material)
+    add constraint PK_BI_tipo_material primary key (tipo_material_id)
 
     create table [Grupo_3312].[Bi_modelo_sillon] (
         modelo_sillon_id bigint not null,
@@ -70,139 +85,90 @@ begin
     add constraint PK_BI_modelo_sillon primary key (modelo_sillon_id)
 
     CREATE TABLE [GRUPO_3312].[BI_estado_pedido](
-        estado_pedido bigint not null,
-        estado_pedido_estado nvarchar(255)
+        estado_pedido_id bigint not null,
+        estado_pedido_detalle nvarchar(255)
     )
 
     alter table [Grupo_3312].[BI_estado_pedido]
-    add constraint PK_BI_estado_pedido primary key (estado_pedido)
-
-    create table [Grupo_3312].[Bi_cliente] (
-        cliente_id bigint not null,
-        cliente_ubicacion bigint not null,
-        cliente_rango_etario bigint not null
-    )
-
-    alter table [Grupo_3312].[BI_cliente]
-    add constraint PK_BI_cliente primary key (cliente_id)
-
-    alter table [Grupo_3312].[BI_cliente]
-    add constraint FK_BI_cliente_ubicacion foreign key (cliente_ubicacion) references Grupo_3312.BI_ubicacion (ubicacion_id)
-
-    alter table [Grupo_3312].[BI_cliente]
-    add constraint FK_BI_cliente_rango_etario foreign key (cliente_rango_etario) references Grupo_3312.BI_rango_etario (rango_etario_id)
+    add constraint PK_BI_estado_pedido primary key (estado_pedido_id)
 
     create table [grupo_3312].[BI_sucursal] (
-        suc_numero bigint not null,
-        suc_ubicacion bigint not null
+        sucursal_numero bigint not null
     )
 
     alter table [Grupo_3312].[BI_sucursal]
-    add constraint PK_BI_sucursal primary key (suc_numero)
-
-    alter table [Grupo_3312].[BI_sucursal]
-    add constraint FK_BI_suc_ubicacion foreign key (suc_ubicacion) references Grupo_3312.BI_ubicacion (ubicacion_id)
+    add constraint PK_BI_sucursal primary key (sucursal_numero)
 
     CREATE TABLE [grupo_3312].[BI_compra](
-        compra_numero bigint not null,
         dim_compra_sucursal bigint not null,
-        dim_compra_tiempo bigint not null
+        dim_compra_tiempo bigint not null,
+        dim_compra_tipo_material bigint not null,
+        compra_total decimal(18,2) not null
     )
 
     alter table [Grupo_3312].[BI_compra]
-        add constraint PK_BI_hecho_compra primary key (compra_numero)
+    add constraint FK_dim_sucursal foreign key (dim_compra_sucursal) references Grupo_3312.BI_sucursal (sucursal_numero)
 
     alter table [Grupo_3312].[BI_compra]
-        add constraint FK_BI_dim_sucursal foreign key (dim_compra_sucursal) references Grupo_3312.BI_sucursal (suc_numero)
+    add constraint FK_dim_tiempo foreign key (dim_compra_tiempo) references Grupo_3312.BI_tiempo (tiempo_id)
 
     alter table [Grupo_3312].[BI_compra]
-        add constraint FK_BI_dim_tiempo foreign key (dim_compra_tiempo) references Grupo_3312.BI_tiempo (tiempo_id)
-
-    CREATE TABLE [grupo_3312].[BI_detalle_compra] (
-        det_compra_numero bigint not null,
-        dim_det_compra_material bigint not null,
-        det_compra_precio decimal(18,0),
-        det_compra_cantidad decimal(18,0)
-    )
-
-    alter table [Grupo_3312].[BI_detalle_compra]
-    add constraint FK_BI_numero_compra foreign key (det_compra_numero) references Grupo_3312.BI_compra (compra_numero)
-
-    alter table [Grupo_3312].[BI_detalle_compra]
-    add constraint FK_BI_tipo_material foreign key (dim_det_compra_material) references Grupo_3312.BI_tipo_material (tipo_material)
+    add constraint FK_dim_tipo_material foreign key (dim_compra_tipo_material) references Grupo_3312.BI_tipo_material (tipo_material_id)
 
     create table [GRUPO_3312].[BI_pedido] (
-        pedido_numero decimal(18,0) not null,
         dim_pedido_tiempo bigint not null,
         dim_pedido_turno bigint not null,
         dim_pedido_sucursal bigint not null,
-        dim_pedido_estado bigint not null
+        dim_pedido_estado bigint not null,
     )
 
     alter table [Grupo_3312].[BI_pedido]
-        add constraint PK_BI_hecho_pedido_numero primary key (pedido_numero)
+    add constraint FK_dim_pedido_tiempo foreign key (dim_pedido_tiempo) references Grupo_3312.BI_tiempo (tiempo_id)
 
     alter table [Grupo_3312].[BI_pedido]
-    add constraint FK_BI_dim_pedido_tiempo foreign key (dim_pedido_tiempo) references Grupo_3312.BI_tiempo (tiempo_id)
+        add constraint FK_dim_pedido_turno foreign key (dim_pedido_turno) references Grupo_3312.BI_turno_venta (turno_venta_id)
 
     alter table [Grupo_3312].[BI_pedido]
-        add constraint FK_BI_dim_pedido_turno foreign key (dim_pedido_turno) references Grupo_3312.BI_turno_venta (turno_venta_id)
+        add constraint FK_dim_pedido_sucursal foreign key (dim_pedido_sucursal) references Grupo_3312.BI_sucursal (sucursal_numero)
 
     alter table [Grupo_3312].[BI_pedido]
-        add constraint FK_BI_dim_pedido_sucursal foreign key (dim_pedido_sucursal) references Grupo_3312.BI_sucursal (suc_numero)
+        add constraint FK_dim_pedido_estado foreign key (dim_pedido_estado) references Grupo_3312.BI_estado_pedido (estado_pedido_id)
 
-    alter table [Grupo_3312].[BI_pedido]
-        add constraint FK_BI_dim_pedido_estado foreign key (dim_pedido_estado) references Grupo_3312.BI_estado_pedido (estado_pedido)
-
-    create table [Grupo_3312].[BI_factura] (
-        factura_id bigint not null,
-        dim_factura_tiempo bigint not null,
-        dim_factura_cliente bigint not null,
-        dim_factura_sucursal bigint not null,
-        factura_pedido decimal(18,0) not null
+    create table [Grupo_3312].[BI_venta] (
+        dim_venta_tiempo bigint not null,
+        dim_venta_rango_etario_cliente bigint not null,
+        dim_venta_sucursal bigint not null,
+        dim_venta_modelo bigint not null,
+        venta_precio decimal(18,2) not null,
+        venta_cantidad decimal(18,0) not null,
+        venta_total decimal(18,2) not null
     )
 
-    alter table [Grupo_3312].[BI_factura]
-	add constraint PK_BI_hecho_factura_numero primary key (factura_id)
+    alter table [Grupo_3312].[BI_venta]
+	add constraint FK_dim_venta_tiempo foreign key (dim_venta_tiempo) references Grupo_3312.BI_tiempo (tiempo_id)
 
-    alter table [Grupo_3312].[BI_factura]
-	add constraint FK_BI_dim_factura_tiempo foreign key (dim_factura_tiempo) references Grupo_3312.BI_tiempo (tiempo_id)
+    alter table [Grupo_3312].[BI_venta]
+    add constraint FK_dim_venta_sucursal foreign key (dim_venta_sucursal) references Grupo_3312.BI_sucursal (sucursal_numero)
 
-    alter table [Grupo_3312].[BI_factura]
-    add constraint FK_BI_factura_sucursal foreign key (dim_factura_sucursal) references Grupo_3312.BI_sucursal (suc_numero)
+    alter table [Grupo_3312].[BI_venta]
+	add constraint FK_dim_venta_rango_etario_cliente foreign key (dim_venta_rango_etario_cliente) references Grupo_3312.BI_rango_etario (rango_etario_id)
 
-    alter table [Grupo_3312].[BI_factura]
-    add constraint FK_BI_factura_pedido_numero foreign key (factura_pedido) references Grupo_3312.BI_pedido (pedido_numero)
+    alter table [Grupo_3312].[BI_venta]
+    add constraint FK_dim_venta_modelo foreign key (dim_venta_rango_etario_cliente) references Grupo_3312.BI_modelo_sillon (modelo_sillon_id)
 
-    alter table [Grupo_3312].[BI_factura]
-	add constraint FK_BI_factiura_cliente foreign key (dim_factura_cliente) references Grupo_3312.Bi_cliente (cliente_id)
-
-    create table [Grupo_3312].[BI_detalle_factura] (
-        detalle_factura_numero bigint not null,
-        dim_detalle_factura_modelo bigint not null,
-        detalle_factura_precio decimal(18,2) not null,
-        detalle_factura_cantidad decimal(18,0) not null
-    )
-
-    alter table [Grupo_3312].[BI_detalle_factura]
-    add constraint FK_BI_detalle_factura_numero foreign key (detalle_factura_numero) references Grupo_3312.BI_factura (factura_id)
-
-    alter table [Grupo_3312].[BI_detalle_factura]
-    add constraint FK_BI_detalle_factura_modelo foreign key (dim_detalle_factura_modelo) references Grupo_3312.Bi_modelo_sillon (modelo_sillon_id)
-
-    create table [Grupo_3312].[BI_envio] (
-        envio_factura_id bigint not null,
-        dim_envio_cliente bigint not null,
-        envio_fecha_estimada smalldatetime not null,
-        envio_fecha_entregado smalldatetime not null,
+	create table [Grupo_3312].[BI_envio] (
+        dim_envio_ubicacion_cliente bigint not null,
+        dim_envio_tiempo bigint not null,
+        envio_fecha_estimada datetime not null,
+        envio_fecha_entregado datetime not null,
         envio_total decimal(18,2) not null
     )
 
     alter table [Grupo_3312].[BI_envio]
-    add constraint FK_BI_envio_factura_id foreign key (envio_factura_id) references Grupo_3312.BI_factura (factura_id)
+    add constraint FK_dim_ubicacion_cliente foreign key (dim_envio_ubicacion_cliente) references Grupo_3312.BI_ubicacion (ubicacion_id)
 
     alter table [Grupo_3312].[BI_envio]
-    add constraint FK_BI_dim_envio_cliente foreign key (dim_envio_cliente) references Grupo_3312.Bi_cliente (cliente_id)
+    add constraint FK_dim_envio_tiempo foreign key (dim_envio_tiempo) references Grupo_3312.BI_tiempo (tiempo_id)
 
 end
 go
@@ -268,98 +234,44 @@ begin
 	--Migracion modelo sucursal
 	insert into GRUPO_3312.BI_sucursal
 	select
-	suc_numero,
-	(select ubicacion_id from GRUPO_3312.BI_ubicacion where prov_detalle = ubicacion_provincia 
-	and loc_detalle = ubicacion_localidad)
+	suc_numero
 	from GRUPO_3312.sucursal 
-	left join GRUPO_3312.localidad on loc_codigo = suc_localidad 
-	left join GRUPO_3312.provincia on prov_codigo = loc_provincia
 
-
-    --Migracion dimension cliente
-	insert into GRUPO_3312.Bi_cliente
-	select 
-	clie_dni,
-	ubicacion_id,
-	(select rango_etario_id from GRUPO_3312.BI_rango_etario
-	where year(getdate()) - year(clie_fechaNacimiento) between rango_etario_edad_minima AND rango_etario_edad_maxima)
-	from GRUPO_3312.cliente
-	join GRUPO_3312.localidad on loc_codigo = clie_localidad 
-	join GRUPO_3312.provincia on prov_codigo = loc_provincia
-	join GRUPO_3312.BI_ubicacion on prov_detalle = ubicacion_provincia and loc_detalle = ubicacion_localidad
-
-	--Migracion de pedidos
-	INSERT INTO GRUPO_3312.BI_pedido
-	select
-    ped_numero,
-    (select tiempo_id from GRUPO_3312.BI_tiempo
-    where year(ped_fecha) = tiempo_anio
-    and month(ped_fecha) = tiempo_mes
-    and dbo.transformar_a_cuatrimestre(ped_fecha) = tiempo_cuatrimestre),
-    (select turno_venta_id from GRUPO_3312.BI_turno_venta
-    where CONVERT(TIME(0), ped_fecha) BETWEEN turno_venta_inicio AND turno_venta_fin),
-    ped_sucursal,
-    ped_estado
-	from GRUPO_3312.pedido
-
-	--Migracion de Facturas
-	insert into GRUPO_3312.BI_factura
-	select
-    fact_numero,
-    (select tiempo_id from GRUPO_3312.BI_tiempo where year(fact_fecha) = tiempo_anio
-    and month(fact_fecha) = tiempo_mes
-    and dbo.transformar_a_cuatrimestre(fact_fecha) = tiempo_cuatrimestre),
-	fact_cliente,
-	fact_sucursal,
-    (select top 1 det_fact_numeroPedido from GRUPO_3312.detalle_factura where det_fact_numero = fact_numero)
-	from GRUPO_3312.factura 
-	group by fact_numero, fact_fecha, fact_cliente, fact_sucursal
-
-	--Migracion detalle factura
-	INSERT INTO GRUPO_3312.BI_detalle_factura
-	select
-    det_fact_numero,
-    (select sill_modelo from GRUPO_3312.sillon
-    where det_fact_sillon = sill_codigo),
-    det_fact_precio,
-    det_fact_cantidad
-	from GRUPO_3312.detalle_factura
-
-	--Migracion de envios
-    INSERT INTO GRUPO_3312.BI_envio
-    SELECT
-        fact_numero,
-        fact_cliente,
+	--Migracion de envio
+    insert into GRUPO_3312.BI_envio
+    select
+        (select ubicacion_id from GRUPO_3312.cliente
+        join GRUPO_3312.localidad on clie_localidad = loc_codigo
+        join GRUPO_3312.provincia on loc_provincia = prov_codigo
+        join GRUPO_3312.BI_ubicacion on ubicacion_provincia = prov_detalle and ubicacion_localidad = loc_detalle
+        where clie_dni = fact_cliente),
+        dbo.obtener_dim_tiempo(fact_fecha),
         env_fechaProgramada,
         env_fechaEntrega,
-        env_total
-    FROM GRUPO_3312.factura
-    join GRUPO_3312.envio on fact_envio = env_numero
+		env_total
+    from GRUPO_3312.envio
+    join GRUPO_3312.factura on fact_envio = env_numero
+    group by fact_cliente, env_total, env_fechaProgramada, env_fechaEntrega, fact_fecha
 
-	--Migracion compra
+
+    --Migracion de compra
 	insert into GRUPO_3312.BI_compra
 	select
-	comp_numero,
-	comp_sucursal,
-	(select tiempo_id from GRUPO_3312.BI_tiempo where year(comp_fecha) = tiempo_anio
-	and month(comp_fecha) = tiempo_mes
-	and dbo.transformar_a_cuatrimestre(comp_fecha) = tiempo_cuatrimestre)
-	from GRUPO_3312.compra 
-
-	--Migracion detalle compra
-	insert into GRUPO_3312.BI_detalle_compra
-	select
-	det_comp_numero,
-	(select tipo_material from GRUPO_3312.BI_tipo_material 
-	join GRUPO_3312.material on det_comp_material = mat_codigo
-	where detalle_material = mat_tipo
-	),
-	det_comp_precio,
-	det_comp_cantidad
+    comp_sucursal,
+    dbo.obtener_dim_tiempo(comp_fecha),
+	tipo_material_id,
+	sum(det_comp_precio * det_comp_cantidad)
 	from GRUPO_3312.detalle_compra
+	join GRUPO_3312.compra on comp_numero = det_comp_numero
+	join GRUPO_3312.material on mat_codigo = det_comp_material
+	join GRUPO_3312.BI_tipo_material on tipo_material_detalle = mat_tipo
+	group by comp_numero, tipo_material_id, comp_sucursal, comp_fecha
+    
 
 end
 go
+
+
 
 exec crear_modelo_bi
 go
@@ -372,16 +284,16 @@ go
 alter VIEW ganancias (sucursal, mes, Ganancias)
 as
 SELECT
-    suc_numero,
+    sucursal_numero,
     tiempo_mes,
-	sum(detalle_factura_precio * detalle_factura_cantidad) - sum(det_compra_precio * det_compra_cantidad) 
+	sum(det_factura_precio * det_factura_cantidad) - sum(det_compra_precio * det_compra_cantidad)
 FROM GRUPO_3312.BI_sucursal
-join GRUPO_3312.BI_compra on suc_numero = dim_compra_sucursal
+join GRUPO_3312.BI_compra on sucursal_numero = dim_compra_sucursal
 join GRUPO_3312.BI_detalle_compra on det_compra_numero = compra_numero
-join GRUPO_3312.Bi_factura on suc_numero = dim_factura_sucursal
-join GRUPO_3312.BI_detalle_factura on detalle_factura_numero = factura_id
+join GRUPO_3312.Bi_factura on sucursal_numero = dim_factura_sucursal
+join GRUPO_3312.BI_detalle_factura on det_factura_numero = factura_id
 join GRUPO_3312.Bi_tiempo on tiempo_id = dim_factura_tiempo and tiempo_id = dim_compra_tiempo
-group by suc_numero, tiempo_mes
+group by sucursal_numero, tiempo_mes
 go
 
 SELECT * FROM ganancias
@@ -398,9 +310,9 @@ tiempo_anio,
 sum(detalle_factura_cantidad * detalle_factura_precio) / count(distinct factura_id)
 from GRUPO_3312.BI_tiempo
 join GRUPO_3312.BI_factura on dim_factura_tiempo = tiempo_id
-join GRUPO_3312.BI_detalle_factura on detalle_factura_numero = factura_id
-join GRUPO_3312.BI_sucursal on dim_factura_sucursal = suc_numero
-join GRUPO_3312.BI_ubicacion on ubicacion_id = suc_ubicacion
+join GRUPO_3312.BI_detalle_factura on det_factura_numero = factura_id
+join GRUPO_3312.BI_sucursal on dim_factura_sucursal = sucursal_numero
+join GRUPO_3312.BI_ubicacion on ubicacion_id = sucursal_ubicacion
 group by ubicacion_provincia, tiempo_cuatrimestre, tiempo_anio
 go
 
@@ -412,16 +324,17 @@ go
 create view rendimiento_de_pedidos (anio, cuatrimestre, localidad_sucursal, rango_etario, modelo_sillon)
 as
 select top 3 from GRUPO_3312.Bi_modelo_sillon
-join GRUPO_3312.BI_detalle_factura on dim_detalle_factura_modelo = modelo_sillon_id
-join GRUPO_3312.BI_factura on factura_id = detalle_factura_numero
+join GRUPO_3312.BI_detalle_factura on dim_det_factura_modelo = modelo_sillon_id
+join GRUPO_3312.BI_factura on factura_id = det_factura_numero
 join GRUPO_3312.BI_tiempo on tiempo_id = dim_factura_tiempo
-join GRUPO_3312.BI_sucursal on suc_numero = dim_factura_sucursal
+join GRUPO_3312.BI_sucursal on sucursal_numero = dim_factura_sucursal
 join GRUPO_3312.Bi_cliente on cliente_id = dim_factura_cliente
-join GRUPO_3312.BI_rango_etario on rango_etario_id = cliente_rango_etario
+join GRUPO_3312.BI_rango_etario on rango_etario_id = dim_cliente_rango_etario
 group by tiempo_anio,
 */
 
 go
+
 --Vista 4: Volumen de pedidos
 
 alter view volumen_de_pedidos (anio, mes, sucursal, turno, cantidad_pedidos)
@@ -429,14 +342,14 @@ as
 select 
 tiempo_anio, 
 tiempo_mes, 
-suc_numero, 
+sucursal_numero,
 turno_venta_id,
 count(distinct pedido_numero) 
 from GRUPO_3312.BI_sucursal
-join GRUPO_3312.BI_pedido on dim_pedido_sucursal = suc_numero
+join GRUPO_3312.BI_pedido on dim_pedido_sucursal = sucursal_numero
 join GRUPO_3312.BI_turno_venta on turno_venta_id = dim_pedido_turno
 join GRUPO_3312.BI_tiempo on tiempo_id = dim_pedido_tiempo
-group by tiempo_anio, tiempo_mes, suc_numero, turno_venta_id 
+group by tiempo_anio, tiempo_mes, sucursal_numero, turno_venta_id
 go
 
 select * from volumen_de_pedidos
@@ -447,16 +360,16 @@ go
 alter view conversion_de_pedidos (sucursal, cuatrimestre, estado, porcentaje)
 as
 select 
-suc_numero, 
+sucursal_numero,
 tiempo_cuatrimestre, 
 estado_pedido_estado,
 ((count(pedido_numero) * 100) / (select count(*) from GRUPO_3312.BI_pedido 
-								where dim_pedido_tiempo = tiempo_id and dim_pedido_sucursal = suc_numero)) 
+								where dim_pedido_tiempo = tiempo_id and dim_pedido_sucursal = sucursal_numero))
 from GRUPO_3312.sucursal
-join GRUPO_3312.BI_pedido on dim_pedido_sucursal = suc_numero
+join GRUPO_3312.BI_pedido on dim_pedido_sucursal = sucursal_numero
 join GRUPO_3312.BI_estado_pedido on estado_pedido = dim_pedido_estado
 join GRUPO_3312.BI_tiempo on tiempo_id = dim_pedido_tiempo
-group by suc_numero, estado_pedido_estado, tiempo_cuatrimestre, tiempo_id
+group by sucursal_numero, estado_pedido_estado, tiempo_cuatrimestre, tiempo_id
 go
 
 select * from conversion_de_pedidos
@@ -467,11 +380,11 @@ go
 create view tiempo_promedio_de_fabricacion (sucursal, cuatrimestre, tiempo_promedio_fabricacion)
 as
 select 
-suc_numero, 
+sucursal_numero,
 tiempo_cuatrimestre,
 
 from GRUPO_3312.BI_sucursal
-join GRUPO_3312.BI_factura on dim_factura_sucursal = suc_numero
+join GRUPO_3312.BI_factura on dim_factura_sucursal = sucursal_numero
 join GRUPO_3312.BI_pedido on pedido_numero = factura_pedido
 join GRUPO_3312.BI_tiempo on tiempo_id = dim_factura_tiempo and tiempo_id = dim_pedido_tiempo
 group by 
@@ -498,15 +411,15 @@ create view compras_por_tipo_de_material (cuatrimestre, sucursal, tipo_material,
 as
 select 
 tiempo_cuatrimestre, 
-suc_numero, 
+sucursal_numero,
 detalle_material,
 sum(det_compra_cantidad * det_compra_precio)
 from GRUPO_3312.BI_sucursal
-join GRUPO_3312.BI_compra on dim_compra_sucursal = suc_numero
+join GRUPO_3312.BI_compra on dim_compra_sucursal = sucursal_numero
 join GRUPO_3312.BI_detalle_compra on det_compra_numero = compra_numero
 join GRUPO_3312.BI_tiempo on tiempo_id = dim_compra_tiempo 
 join GRUPO_3312.BI_tipo_material on tipo_material = dim_det_compra_material
-group by tiempo_cuatrimestre, suc_numero, tipo_material, detalle_material
+group by tiempo_cuatrimestre, sucursal_numero, tipo_material, detalle_material
 go
 
 select * from compras_por_tipo_de_material
