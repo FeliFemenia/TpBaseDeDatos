@@ -141,7 +141,7 @@ begin
         dim_venta_modelo bigint not null,
         venta_precio decimal(18,2) not null,
         venta_cantidad decimal(18,0) not null,
-        venta_total decimal(18,2) not null
+        venta_tiempo_fabricacion int not null
     )
 
     alter table [Grupo_3312].[BI_venta]
@@ -154,7 +154,7 @@ begin
 	add constraint FK_dim_venta_rango_etario_cliente foreign key (dim_venta_rango_etario_cliente) references Grupo_3312.BI_rango_etario (rango_etario_id)
 
     alter table [Grupo_3312].[BI_venta]
-    add constraint FK_dim_venta_modelo foreign key (dim_venta_rango_etario_cliente) references Grupo_3312.BI_modelo_sillon (modelo_sillon_id)
+    add constraint FK_dim_venta_modelo foreign key (dim_venta_modelo) references Grupo_3312.BI_modelo_sillon (modelo_sillon_id)
 
 	create table [Grupo_3312].[BI_envio] (
         dim_envio_ubicacion_cliente bigint not null,
@@ -266,11 +266,38 @@ begin
 	join GRUPO_3312.material on mat_codigo = det_comp_material
 	join GRUPO_3312.BI_tipo_material on tipo_material_detalle = mat_tipo
 	group by comp_numero, tipo_material_id, comp_sucursal, comp_fecha
-    
 
+	-- Migracion de ventas
+	INSERT INTO GRUPO_3312.BI_venta
+	select
+	    dbo.obtener_dim_tiempo(fact_fecha),
+	    (select rango_etario_id from GRUPO_3312.cliente
+	    join GRUPO_3312.BI_rango_etario on year(getdate()) - year(clie_fechaNacimiento) between rango_etario_min and rango_etario_max
+	    where clie_dni = fact_cliente),
+		fact_sucursal,
+	    sill_modelo,
+        det_fact_precio,
+        det_fact_cantidad,
+        (select DATEDIFF(DAY, ped_fecha, fact_fecha) from GRUPO_3312.pedido
+        where ped_numero = det_fact_numeroPedido)
+	from GRUPO_3312.detalle_factura
+	join GRUPO_3312.factura on fact_numero = det_fact_numero
+	join GRUPO_3312.sillon on det_fact_sillon = sill_codigo
+	group by fact_sucursal, fact_fecha, fact_cliente, det_fact_sillon, 
+	fact_sucursal, det_fact_precio, det_fact_cantidad, det_fact_numeroPedido,
+	sill_modelo
+
+    --Migracion de pedido
+    insert into GRUPO_3312.BI_pedido
+	select
+	    dbo.obtener_dim_tiempo(ped_fecha),
+	    (select turno_venta_id from GRUPO_3312.BI_turno_venta 
+		where CONVERT(TIME(0), ped_fecha) BETWEEN turno_venta_inicio AND turno_venta_fin),
+	    ped_sucursal,
+        ped_estado
+	from GRUPO_3312.pedido 
 end
 go
-
 
 
 exec crear_modelo_bi
@@ -278,6 +305,7 @@ go
 
 exec migrar_modelo_bi
 go
+
 -- Vistas
 
 -- Vista 1: Ganancias
