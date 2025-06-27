@@ -139,9 +139,11 @@ begin
         dim_venta_rango_etario_cliente bigint not null,
         dim_venta_sucursal bigint not null,
         dim_venta_modelo bigint not null,
+		dim_venta_localidad_sucursal bigint not null, 
         venta_precio decimal(18,2) not null,
         venta_cantidad decimal(18,0) not null,
-        venta_tiempo_fabricacion int not null
+        venta_tiempo_fabricacion int not null,
+		venta_numero bigint not null
     )
 
     alter table [Grupo_3312].[BI_venta]
@@ -155,6 +157,9 @@ begin
 
     alter table [Grupo_3312].[BI_venta]
     add constraint FK_dim_venta_modelo foreign key (dim_venta_modelo) references Grupo_3312.BI_modelo_sillon (modelo_sillon_id)
+
+	alter table [Grupo_3312].[BI_venta]
+    add constraint FK_dim_venta_localidad_sucursal foreign key (dim_venta_localidad_sucursal) references Grupo_3312.BI_ubicacion (ubicacion_id)
 
 	create table [Grupo_3312].[BI_envio] (
         dim_envio_ubicacion_cliente bigint not null,
@@ -276,16 +281,22 @@ begin
 	    where clie_dni = fact_cliente),
 		fact_sucursal,
 	    sill_modelo,
+		(select ubicacion_id from GRUPO_3312.sucursal 
+		join GRUPO_3312.localidad on loc_codigo = suc_localidad
+		join GRUPO_3312.provincia on loc_provincia = prov_codigo
+		join GRUPO_3312.BI_ubicacion on ubicacion_localidad = loc_detalle and ubicacion_provincia = prov_detalle
+		where fact_sucursal = suc_numero),
         det_fact_precio,
         det_fact_cantidad,
         (select DATEDIFF(DAY, ped_fecha, fact_fecha) from GRUPO_3312.pedido
-        where ped_numero = det_fact_numeroPedido)
+        where ped_numero = det_fact_numeroPedido),
+		fact_numero
 	from GRUPO_3312.detalle_factura
 	join GRUPO_3312.factura on fact_numero = det_fact_numero
 	join GRUPO_3312.sillon on det_fact_sillon = sill_codigo
 	group by fact_sucursal, fact_fecha, fact_cliente, det_fact_sillon, 
 	fact_sucursal, det_fact_precio, det_fact_cantidad, det_fact_numeroPedido,
-	sill_modelo
+	sill_modelo, fact_numero
 
     --Migracion de pedido
     insert into GRUPO_3312.BI_pedido
@@ -309,42 +320,35 @@ go
 -- Vistas
 
 -- Vista 1: Ganancias
-alter VIEW ganancias (sucursal, mes, Ganancias)
+create VIEW [GRUPO_3312].[ganancias] (sucursal, mes, Ganancias)
 as
-SELECT
-    sucursal_numero,
-    tiempo_mes,
-	sum(det_factura_precio * det_factura_cantidad) - sum(det_compra_precio * det_compra_cantidad)
-FROM GRUPO_3312.BI_sucursal
-join GRUPO_3312.BI_compra on sucursal_numero = dim_compra_sucursal
-join GRUPO_3312.BI_detalle_compra on det_compra_numero = compra_numero
-join GRUPO_3312.Bi_factura on sucursal_numero = dim_factura_sucursal
-join GRUPO_3312.BI_detalle_factura on det_factura_numero = factura_id
-join GRUPO_3312.Bi_tiempo on tiempo_id = dim_factura_tiempo and tiempo_id = dim_compra_tiempo
+select 
+sucursal_numero, 
+tiempo_mes, 
+sum(venta_cantidad * venta_precio) - sum(compra_total)
+from GRUPO_3312.BI_sucursal
+join GRUPO_3312.BI_venta on dim_venta_sucursal = sucursal_numero
+join GRUPO_3312.BI_compra on dim_compra_sucursal = sucursal_numero
+join GRUPO_3312.BI_tiempo on dim_compra_tiempo = tiempo_id and dim_venta_tiempo = tiempo_id
 group by sucursal_numero, tiempo_mes
-go
-
-SELECT * FROM ganancias
 go
 
 --Vista 2: Factura promedio mensual
 
-create view factura_promedio_mensual (provincia, cuatrimestre, anio, promedio)
+create view [GRUPO_3312].[factura_promedio_mensual] (provincia, anio, cuatrimestre, promedio)
 as
 select 
-ubicacion_provincia, 
-tiempo_cuatrimestre,
+ubicacion_provincia,  
 tiempo_anio,
-sum(detalle_factura_cantidad * detalle_factura_precio) / count(distinct factura_id)
-from GRUPO_3312.BI_tiempo
-join GRUPO_3312.BI_factura on dim_factura_tiempo = tiempo_id
-join GRUPO_3312.BI_detalle_factura on det_factura_numero = factura_id
-join GRUPO_3312.BI_sucursal on dim_factura_sucursal = sucursal_numero
-join GRUPO_3312.BI_ubicacion on ubicacion_id = sucursal_ubicacion
+tiempo_cuatrimestre, 
+sum(venta_cantidad * venta_precio) / count(distinct venta_numero)
+from GRUPO_3312.BI_ubicacion
+join GRUPO_3312.BI_venta on dim_venta_localidad_sucursal = ubicacion_id
+join GRUPO_3312.BI_tiempo on tiempo_id = dim_venta_tiempo
 group by ubicacion_provincia, tiempo_cuatrimestre, tiempo_anio
 go
 
-select * from factura_promedio_mensual
+select * from GRUPO_3312.factura_promedio_mensual
 go
 
 --Vista 3: Rendimientos de modelos
@@ -365,14 +369,14 @@ go
 
 --Vista 4: Volumen de pedidos
 
-alter view volumen_de_pedidos (anio, mes, sucursal, turno, cantidad_pedidos)
+create view [GRUPO_3312].[volumen_de_pedidos] (anio, mes, sucursal, turno, cantidad_pedidos)
 as
 select 
 tiempo_anio, 
 tiempo_mes, 
 sucursal_numero,
 turno_venta_id,
-count(distinct pedido_numero) 
+count(*) 
 from GRUPO_3312.BI_sucursal
 join GRUPO_3312.BI_pedido on dim_pedido_sucursal = sucursal_numero
 join GRUPO_3312.BI_turno_venta on turno_venta_id = dim_pedido_turno
@@ -380,106 +384,104 @@ join GRUPO_3312.BI_tiempo on tiempo_id = dim_pedido_tiempo
 group by tiempo_anio, tiempo_mes, sucursal_numero, turno_venta_id
 go
 
-select * from volumen_de_pedidos
+select * from GRUPO_3312.volumen_de_pedidos
 go
 
 --Vista 5: Conversion de pedidos
 
-alter view conversion_de_pedidos (sucursal, cuatrimestre, estado, porcentaje)
-as
-select 
-sucursal_numero,
-tiempo_cuatrimestre, 
-estado_pedido_estado,
-((count(pedido_numero) * 100) / (select count(*) from GRUPO_3312.BI_pedido 
-								where dim_pedido_tiempo = tiempo_id and dim_pedido_sucursal = sucursal_numero))
-from GRUPO_3312.sucursal
-join GRUPO_3312.BI_pedido on dim_pedido_sucursal = sucursal_numero
-join GRUPO_3312.BI_estado_pedido on estado_pedido = dim_pedido_estado
-join GRUPO_3312.BI_tiempo on tiempo_id = dim_pedido_tiempo
-group by sucursal_numero, estado_pedido_estado, tiempo_cuatrimestre, tiempo_id
-go
-
-select * from conversion_de_pedidos
-go
-
---Vista 6: Tiempo promedio de fabricacion
-/*
-create view tiempo_promedio_de_fabricacion (sucursal, cuatrimestre, tiempo_promedio_fabricacion)
+create view [GRUPO_3312].[conversion_de_pedidos] (sucursal, cuatrimestre, estado, porcentaje)
 as
 select 
 sucursal_numero,
 tiempo_cuatrimestre,
-
+estado_pedido_detalle,
+(count(*) * 100) / (select count(*) from GRUPO_3312.BI_pedido where dim_pedido_sucursal = sucursal_numero 
+						and dim_pedido_tiempo = tiempo_id)
 from GRUPO_3312.BI_sucursal
-join GRUPO_3312.BI_factura on dim_factura_sucursal = sucursal_numero
-join GRUPO_3312.BI_pedido on pedido_numero = factura_pedido
-join GRUPO_3312.BI_tiempo on tiempo_id = dim_factura_tiempo and tiempo_id = dim_pedido_tiempo
-group by 
+join GRUPO_3312.BI_pedido on dim_pedido_sucursal = sucursal_numero
+join GRUPO_3312.BI_estado_pedido on estado_pedido_id = dim_pedido_estado
+join GRUPO_3312.BI_tiempo on tiempo_id = dim_pedido_tiempo
+group by sucursal_numero, estado_pedido_detalle, tiempo_cuatrimestre, tiempo_id
 go
-*/
+
+select * from GRUPO_3312.conversion_de_pedidos
+go
+
+--Vista 6: Tiempo promedio de fabricacion
+
+create view [GRUPO_3312].[tiempo_promedio_de_fabricacion] (sucursal, cuatrimestre, tiempo_promedio_fabricacion_en_dias)
+as
+select
+sucursal_numero, 
+tiempo_cuatrimestre, 
+avg(venta_tiempo_fabricacion)
+from GRUPO_3312.BI_sucursal
+join GRUPO_3312.BI_venta on dim_venta_sucursal = sucursal_numero
+join GRUPO_3312.BI_tiempo on tiempo_id = dim_venta_tiempo
+group by sucursal_numero, tiempo_cuatrimestre
+go
+
+select * from GRUPO_3312.tiempo_promedio_de_fabricacion
+go
 
 --Vista 7: Importe promedio de compras por mes
 
-create view promedio_de_compras (anio, mes, promedio)
+create view [GRUPO_3312].[promedio_de_compras] (mes, promedio)
 as
-    SELECT tiempo_anio, tiempo_mes, AVG(det_compra_precio * det_compra_cantidad)
-    FROM GRUPO_3312.BI_compra
-    join GRUPO_3312.BI_detalle_compra on compra_numero = det_compra_numero
-    join GRUPO_3312.BI_tiempo on tiempo_id = dim_compra_tiempo
-    GROUP BY tiempo_anio, tiempo_mes
+    select 
+	tiempo_mes, 
+	avg(compra_total)
+	from GRUPO_3312.BI_tiempo
+	join GRUPO_3312.BI_compra on dim_compra_tiempo = tiempo_id
+	group by tiempo_mes
 go
 
-select * from promedio_de_compras
+select * from GRUPO_3312.promedio_de_compras
 go
 
 --Vista 8: Compras por tipo de material
 
-create view compras_por_tipo_de_material (cuatrimestre, sucursal, tipo_material, importe_total)
+create view [GRUPO_3312].[compras_por_tipo_de_material] (cuatrimestre, sucursal, tipo_material, importe_total)
 as
 select 
 tiempo_cuatrimestre, 
 sucursal_numero,
-detalle_material,
-sum(det_compra_cantidad * det_compra_precio)
+tipo_material_detalle,
+sum(compra_total)
 from GRUPO_3312.BI_sucursal
 join GRUPO_3312.BI_compra on dim_compra_sucursal = sucursal_numero
-join GRUPO_3312.BI_detalle_compra on det_compra_numero = compra_numero
 join GRUPO_3312.BI_tiempo on tiempo_id = dim_compra_tiempo 
-join GRUPO_3312.BI_tipo_material on tipo_material = dim_det_compra_material
-group by tiempo_cuatrimestre, sucursal_numero, tipo_material, detalle_material
+join GRUPO_3312.BI_tipo_material on tipo_material_id = dim_compra_tipo_material
+group by sucursal_numero, tiempo_cuatrimestre, tipo_material_detalle
 go
 
-select * from compras_por_tipo_de_material
+select * from GRUPO_3312.compras_por_tipo_de_material
 go
 
 --Vista 9: Porcentaje de cumplimiento por mes. 
-alter view porcentaje_de_cumplimiento_por_mes (mes, envios_programados)
+create view [GRUPO_3312].[porcentaje_de_cumplimiento_por_mes] (mes, envios_programados)
 as
 select 
-month(envio_fecha_entregado),
-(count(pedido_numero) * 100) / (select count(*) from GRUPO_3312.BI_pedido join GRUPO_3312.BI_tiempo on tiempo_id = dim_pedido_tiempo
-							where tiempo_mes = month(envio_fecha_entregado))
+tiempo_mes,
+(count(*) * 100) / (select count(*) from GRUPO_3312.BI_envio where dim_envio_tiempo = tiempo_id)
 from GRUPO_3312.BI_envio
-join GRUPO_3312.BI_factura on factura_id = envio_factura_id
-join GRUPO_3312.BI_pedido on pedido_numero = factura_pedido
-join GRUPO_3312.BI_estado_pedido on estado_pedido = dim_pedido_estado 
-where estado_pedido_estado = 'ENTREGADO' and envio_fecha_entregado <= envio_fecha_estimada
-group by MONTH(envio_fecha_entregado)
+join GRUPO_3312.BI_tiempo on tiempo_id = dim_envio_tiempo
+where envio_fecha_entregado <= envio_fecha_estimada
+group by tiempo_mes, tiempo_id
 go
 
-select * from porcentaje_de_cumplimiento_por_mes
+select * from GRUPO_3312.porcentaje_de_cumplimiento_por_mes
 go
 
 --Vista 10: Localidades que pagan mayor costo de envio
-create view localidad_que_pagan_mayor_costo_de_envio (localidad)
+create view [GRUPO_3312].[localidad_que_pagan_mayor_costo_de_envio] (localidad)
 as
-select top 3 ubicacion_localidad from GRUPO_3312.BI_envio
-join GRUPO_3312.Bi_cliente on cliente_id = dim_envio_cliente
-join GRUPO_3312.BI_ubicacion on ubicacion_id = cliente_ubicacion
-group by ubicacion_localidad 
-order by avg(envio_total) desc
+	select top 3 
+	(select ubicacion_localidad from GRUPO_3312.BI_ubicacion where ubicacion_id = dim_envio_ubicacion_cliente) 
+	from GRUPO_3312.BI_envio
+	group by dim_envio_ubicacion_cliente
+	order by sum(envio_total) desc
 go
 
-select * from localidad_que_pagan_mayor_costo_de_envio
+select * from GRUPO_3312.localidad_que_pagan_mayor_costo_de_envio
 go
