@@ -407,6 +407,21 @@ go
 select * from factura_promedio_mensual
 go
 
+--Vista 3: Rendimientos de modelos
+/*
+create view rendimiento_de_pedidos (anio, cuatrimestre, localidad_sucursal, rango_etario, modelo_sillon)
+as
+select top 3 from GRUPO_3312.Bi_modelo_sillon
+join GRUPO_3312.BI_detalle_factura on dim_detalle_factura_modelo = modelo_sillon_id
+join GRUPO_3312.BI_factura on factura_id = detalle_factura_numero
+join GRUPO_3312.BI_tiempo on tiempo_id = dim_factura_tiempo
+join GRUPO_3312.BI_sucursal on suc_numero = dim_factura_sucursal
+join GRUPO_3312.Bi_cliente on cliente_id = dim_factura_cliente
+join GRUPO_3312.BI_rango_etario on rango_etario_id = cliente_rango_etario
+group by tiempo_anio,
+*/
+
+go
 --Vista 4: Volumen de pedidos
 
 alter view volumen_de_pedidos (anio, mes, sucursal, turno, cantidad_pedidos)
@@ -447,6 +462,22 @@ go
 select * from conversion_de_pedidos
 go
 
+--Vista 6: Tiempo promedio de fabricacion
+/*
+create view tiempo_promedio_de_fabricacion (sucursal, cuatrimestre, tiempo_promedio_fabricacion)
+as
+select 
+suc_numero, 
+tiempo_cuatrimestre,
+
+from GRUPO_3312.BI_sucursal
+join GRUPO_3312.BI_factura on dim_factura_sucursal = suc_numero
+join GRUPO_3312.BI_pedido on pedido_numero = factura_pedido
+join GRUPO_3312.BI_tiempo on tiempo_id = dim_factura_tiempo and tiempo_id = dim_pedido_tiempo
+group by 
+go
+*/
+
 --Vista 7: Importe promedio de compras por mes
 
 create view promedio_de_compras (anio, mes, promedio)
@@ -479,6 +510,35 @@ group by tiempo_cuatrimestre, suc_numero, tipo_material, detalle_material
 go
 
 select * from compras_por_tipo_de_material
+go
 
+--Vista 9: Porcentaje de cumplimiento por mes. 
+alter view porcentaje_de_cumplimiento_por_mes (mes, envios_programados)
+as
+select 
+month(envio_fecha_entregado),
+(count(pedido_numero) * 100) / (select count(*) from GRUPO_3312.BI_pedido join GRUPO_3312.BI_tiempo on tiempo_id = dim_pedido_tiempo
+							where tiempo_mes = month(envio_fecha_entregado))
+from GRUPO_3312.BI_envio
+join GRUPO_3312.BI_factura on factura_id = envio_factura_id
+join GRUPO_3312.BI_pedido on pedido_numero = factura_pedido
+join GRUPO_3312.BI_estado_pedido on estado_pedido = dim_pedido_estado 
+where estado_pedido_estado = 'ENTREGADO' and envio_fecha_entregado <= envio_fecha_estimada
+group by MONTH(envio_fecha_entregado)
+go
 
+select * from porcentaje_de_cumplimiento_por_mes
+go
 
+--Vista 10: Localidades que pagan mayor costo de envio
+create view localidad_que_pagan_mayor_costo_de_envio (localidad)
+as
+select top 3 ubicacion_localidad from GRUPO_3312.BI_envio
+join GRUPO_3312.Bi_cliente on cliente_id = dim_envio_cliente
+join GRUPO_3312.BI_ubicacion on ubicacion_id = cliente_ubicacion
+group by ubicacion_localidad 
+order by avg(envio_total) desc
+go
+
+select * from localidad_que_pagan_mayor_costo_de_envio
+go
