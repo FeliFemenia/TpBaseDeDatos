@@ -250,8 +250,8 @@ begin
         ubicacion_id,
         tiempo_id,
         sum(env_total),
-        count(case when env_fechaEntrega <= env_fechaProgramada then 1 else null end),
-        count(case when env_fechaEntrega > env_fechaProgramada then 1 else null end),
+        sum(case when env_fechaEntrega <= env_fechaProgramada then 1 else 0 end),
+        sum(case when env_fechaEntrega > env_fechaProgramada then 1 else 0 end),
         count(*)
     from GRUPO_3312.envio
     join GRUPO_3312.factura on fact_envio = env_numero
