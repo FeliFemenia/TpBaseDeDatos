@@ -1,4 +1,4 @@
-alter procedure crear_tablas 
+create procedure crear_tablas 
 as
 begin
 
@@ -392,7 +392,7 @@ begin
 end
 go -- Ojo con la creacion del schema
 
-alter procedure migrar_datos
+create procedure migrar_datos
 as
 begin
 

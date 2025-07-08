@@ -1,3 +1,5 @@
+-- Creacion de tablas BI
+
 CREATE FUNCTION transformar_a_cuatrimestre (@fecha smalldatetime)
 RETURNS int
 AS
@@ -24,7 +26,6 @@ begin
     return @tiempo_id
 end
 go
-
 
 create procedure crear_modelo_bi
 as
@@ -119,6 +120,7 @@ begin
         dim_pedido_turno bigint not null,
         dim_pedido_sucursal bigint not null,
         dim_pedido_estado bigint not null,
+		pedido_cantidad bigint
     )
 
     alter table [Grupo_3312].[BI_pedido]
@@ -139,10 +141,10 @@ begin
         dim_venta_sucursal bigint not null,
         dim_venta_modelo bigint not null,
 		dim_venta_localidad_sucursal bigint not null, 
-        venta_precio decimal(18,2) not null,
-        venta_cantidad decimal(18,0) not null,
+        venta_total decimal(18,2) not null,
+        venta_cantidad_sillon decimal(18,0) not null,
         venta_tiempo_fabricacion int not null,
-		venta_numero bigint not null
+		venta_cantidad_factura bigint not null
     )
 
     alter table [Grupo_3312].[BI_venta]
@@ -163,9 +165,10 @@ begin
 	create table [Grupo_3312].[BI_envio] (
         dim_envio_ubicacion_cliente bigint not null,
         dim_envio_tiempo bigint not null,
-        envio_fecha_estimada datetime not null,
-        envio_fecha_entregado datetime not null,
-        envio_total decimal(18,2) not null
+        envio_total decimal(18,2) not null,
+		envio_cumplidos bigint,
+		envio_incumplidos bigint,
+	    envio_cantidad bigint
     )
 
     alter table [Grupo_3312].[BI_envio]
@@ -176,6 +179,8 @@ begin
 
 end
 go
+
+--Migracion
 
 create procedure migrar_modelo_bi
 as
@@ -242,68 +247,73 @@ begin
 	--Migracion de envio
     insert into GRUPO_3312.BI_envio
     select
-        (select ubicacion_id from GRUPO_3312.cliente
-        join GRUPO_3312.localidad on clie_localidad = loc_codigo
-        join GRUPO_3312.provincia on loc_provincia = prov_codigo
-        join GRUPO_3312.BI_ubicacion on ubicacion_provincia = prov_detalle and ubicacion_localidad = loc_detalle
-        where clie_dni = fact_cliente),
-        dbo.obtener_dim_tiempo(fact_fecha),
-        env_fechaProgramada,
-        env_fechaEntrega,
-		env_total
+        ubicacion_id,
+        tiempo_id,
+        sum(env_total),
+        count(case when env_fechaEntrega <= env_fechaProgramada then 1 else null end),
+        count(case when env_fechaEntrega > env_fechaProgramada then 1 else null end),
+        count(*)
     from GRUPO_3312.envio
     join GRUPO_3312.factura on fact_envio = env_numero
-    group by fact_cliente, env_total, env_fechaProgramada, env_fechaEntrega, fact_fecha
-
+    join GRUPO_3312.Cliente on fact_cliente = clie_dni
+    join GRUPO_3312.localidad on clie_localidad = loc_codigo
+    join GRUPO_3312.provincia on loc_provincia = prov_codigo
+    join GRUPO_3312.BI_ubicacion on ubicacion_provincia = prov_detalle and ubicacion_localidad = loc_detalle
+    join GRUPO_3312.BI_tiempo on tiempo_id = dbo.obtener_dim_tiempo(fact_fecha)
+    group by ubicacion_id, tiempo_id
 
     --Migracion de compra
 	insert into GRUPO_3312.BI_compra
 	select
     comp_sucursal,
-    dbo.obtener_dim_tiempo(comp_fecha),
+    tiempo_id,
 	tipo_material_id,
 	sum(det_comp_precio * det_comp_cantidad)
 	from GRUPO_3312.detalle_compra
 	join GRUPO_3312.compra on comp_numero = det_comp_numero
 	join GRUPO_3312.material on mat_codigo = det_comp_material
 	join GRUPO_3312.BI_tipo_material on tipo_material_detalle = mat_tipo
-	group by comp_numero, tipo_material_id, comp_sucursal, comp_fecha
+    join GRUPO_3312.BI_tiempo on tiempo_id = dbo.obtener_dim_tiempo(comp_fecha)
+	group by tipo_material_id, comp_sucursal, tiempo_id
 
 	-- Migracion de ventas
 	INSERT INTO GRUPO_3312.BI_venta
 	select
-	    dbo.obtener_dim_tiempo(fact_fecha),
-	    (select rango_etario_id from GRUPO_3312.cliente
-	    join GRUPO_3312.BI_rango_etario on year(getdate()) - year(clie_fechaNacimiento) between rango_etario_min and rango_etario_max
-	    where clie_dni = fact_cliente),
+	    tiempo_id,
+	    rango_etario_id,
 		fact_sucursal,
 	    sill_modelo,
-		(select ubicacion_id from GRUPO_3312.sucursal 
-		join GRUPO_3312.localidad on loc_codigo = suc_localidad
-		join GRUPO_3312.provincia on loc_provincia = prov_codigo
-		join GRUPO_3312.BI_ubicacion on ubicacion_localidad = loc_detalle and ubicacion_provincia = prov_detalle
-		where fact_sucursal = suc_numero),
-        det_fact_precio,
-        det_fact_cantidad,
-        (select DATEDIFF(DAY, ped_fecha, fact_fecha) from GRUPO_3312.pedido
-        where ped_numero = det_fact_numeroPedido),
-		fact_numero
+		ubicacion_id,
+        sum(det_fact_precio * det_fact_cantidad),
+        count(det_fact_sillon),
+        avg(DATEDIFF(DAY, ped_fecha, fact_fecha)),
+		count(distinct fact_numero)
 	from GRUPO_3312.detalle_factura
 	join GRUPO_3312.factura on fact_numero = det_fact_numero
+	join GRUPO_3312.pedido on ped_numero = det_fact_numeroPedido
 	join GRUPO_3312.sillon on det_fact_sillon = sill_codigo
-	group by fact_sucursal, fact_fecha, fact_cliente, det_fact_sillon, 
-	fact_sucursal, det_fact_precio, det_fact_cantidad, det_fact_numeroPedido,
-	sill_modelo, fact_numero
+	join GRUPO_3312.cliente on clie_dni = fact_cliente
+	join GRUPO_3312.sucursal on fact_sucursal = suc_numero
+    join GRUPO_3312.localidad on loc_codigo = suc_localidad
+    join GRUPO_3312.provincia on loc_provincia = prov_codigo
+    join GRUPO_3312.BI_ubicacion on ubicacion_localidad = loc_detalle and ubicacion_provincia = prov_detalle
+    join GRUPO_3312.BI_rango_etario on year(getdate()) - year(clie_fechaNacimiento) between rango_etario_min and rango_etario_max
+    join GRUPO_3312.BI_tiempo on tiempo_id = dbo.obtener_dim_tiempo(fact_fecha)
+	group by tiempo_id, rango_etario_id, fact_sucursal, sill_modelo, ubicacion_id
 
     --Migracion de pedido
     insert into GRUPO_3312.BI_pedido
 	select
-	    dbo.obtener_dim_tiempo(ped_fecha),
-	    (select turno_venta_id from GRUPO_3312.BI_turno_venta 
-		where CONVERT(TIME(0), ped_fecha) BETWEEN turno_venta_inicio AND turno_venta_fin),
+	    tiempo_id,
+	    turno_venta_id,
 	    ped_sucursal,
-        ped_estado
-	from GRUPO_3312.pedido 
+        ped_estado,
+        count(ped_numero)
+	from GRUPO_3312.pedido
+	join GRUPO_3312.BI_turno_venta on CONVERT(TIME(0), ped_fecha) BETWEEN turno_venta_inicio AND turno_venta_fin
+    join GRUPO_3312.BI_tiempo on tiempo_id = dbo.obtener_dim_tiempo(ped_fecha)
+	GROUP BY tiempo_id, turno_venta_id, ped_sucursal, ped_estado
+
 end
 go
 
@@ -314,6 +324,7 @@ go
 exec migrar_modelo_bi
 go
 
+
 -- Vistas
 
 -- Vista 1: Ganancias
@@ -322,7 +333,7 @@ as
 select 
 sucursal_numero, 
 tiempo_mes, 
-sum(venta_cantidad * venta_precio) - sum(compra_total)
+sum(venta_total) - sum(compra_total)
 from GRUPO_3312.BI_sucursal
 join GRUPO_3312.BI_venta on dim_venta_sucursal = sucursal_numero
 join GRUPO_3312.BI_compra on dim_compra_sucursal = sucursal_numero
@@ -338,7 +349,7 @@ select
 ubicacion_provincia,  
 tiempo_anio,
 tiempo_cuatrimestre, 
-sum(venta_cantidad * venta_precio) / count(distinct venta_numero)
+sum(venta_total) / sum(venta_cantidad_factura)
 from GRUPO_3312.BI_ubicacion
 join GRUPO_3312.BI_venta on dim_venta_localidad_sucursal = ubicacion_id
 join GRUPO_3312.BI_tiempo on tiempo_id = dim_venta_tiempo
@@ -364,7 +375,7 @@ FROM (
         m.modelo_sillon_nombre,
         ROW_NUMBER() OVER (
             PARTITION BY t.tiempo_anio, t.tiempo_cuatrimestre, u.ubicacion_localidad, r.rango_etario_id
-            ORDER BY SUM(v.venta_cantidad) DESC
+            ORDER BY SUM(v.venta_cantidad_sillon) DESC
         ) AS rn
     FROM GRUPO_3312.BI_venta v
     JOIN GRUPO_3312.BI_tiempo t ON t.tiempo_id = v.dim_venta_tiempo
@@ -379,9 +390,8 @@ FROM (
         m.modelo_sillon_nombre
 ) AS ranked
 WHERE rn <= 3
+
 go
-
-
 
 --Vista 4: Volumen de pedidos
 
@@ -392,7 +402,7 @@ tiempo_anio,
 tiempo_mes, 
 sucursal_numero,
 turno_venta_id,
-count(*) 
+sum(pedido_cantidad)
 from GRUPO_3312.BI_sucursal
 join GRUPO_3312.BI_pedido on dim_pedido_sucursal = sucursal_numero
 join GRUPO_3312.BI_turno_venta on turno_venta_id = dim_pedido_turno
@@ -408,15 +418,16 @@ select
 sucursal_numero,
 tiempo_cuatrimestre,
 estado_pedido_detalle,
-(count(*) * 100) / (select count(*) from GRUPO_3312.BI_pedido where dim_pedido_sucursal = sucursal_numero 
-						and dim_pedido_tiempo = tiempo_id)
+round(CONVERT(decimal(10,2), sum(pedido_cantidad) * 100) / (select sum(pedido_cantidad) from GRUPO_3312.BI_pedido p
+								join GRUPO_3312.BI_tiempo t on t.tiempo_id = p.dim_pedido_tiempo 
+								and t.tiempo_cuatrimestre = tiempo_cuatrimestre
+									where p.dim_pedido_sucursal = sucursal_numero),2)
 from GRUPO_3312.BI_sucursal
 join GRUPO_3312.BI_pedido on dim_pedido_sucursal = sucursal_numero
 join GRUPO_3312.BI_estado_pedido on estado_pedido_id = dim_pedido_estado
 join GRUPO_3312.BI_tiempo on tiempo_id = dim_pedido_tiempo
-group by sucursal_numero, estado_pedido_detalle, tiempo_cuatrimestre, tiempo_id
+group by sucursal_numero, estado_pedido_detalle, tiempo_cuatrimestre
 go
-
 
 --Vista 6: Tiempo promedio de fabricacion
 
@@ -461,24 +472,28 @@ group by sucursal_numero, tiempo_cuatrimestre, tipo_material_detalle
 go
 
 --Vista 9: Porcentaje de cumplimiento por mes. 
-create view [GRUPO_3312].[porcentaje_de_cumplimiento_por_mes] (mes, envios_programados)
+create view [GRUPO_3312].[porcentaje_de_cumplimiento_por_mes] (mes, porcentaje_de_cumplimiento)
 as
 select 
 tiempo_mes,
-(count(*) * 100) / (select count(*) from GRUPO_3312.BI_envio where dim_envio_tiempo = tiempo_id)
+(sum(envio_cumplidos) * 100) / sum(envio_cantidad)
 from GRUPO_3312.BI_envio
 join GRUPO_3312.BI_tiempo on tiempo_id = dim_envio_tiempo
-where envio_fecha_entregado <= envio_fecha_estimada
-group by tiempo_mes, tiempo_id
+group by tiempo_mes
 go
 
 --Vista 10: Localidades que pagan mayor costo de envio
 create view [GRUPO_3312].[localidad_que_pagan_mayor_costo_de_envio] (localidad)
 as
 	select top 3 
-	(select ubicacion_localidad from GRUPO_3312.BI_ubicacion where ubicacion_id = dim_envio_ubicacion_cliente) 
+	ubicacion_localidad 
 	from GRUPO_3312.BI_envio
-	group by dim_envio_ubicacion_cliente
-	order by sum(envio_total) desc
+	join GRUPO_3312.BI_ubicacion on ubicacion_id = dim_envio_ubicacion_cliente
+	group by ubicacion_localidad
+	order by avg(envio_total) desc
 go
+
+
+
+
 
